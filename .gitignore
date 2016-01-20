@@ -62,3 +62,4 @@ Release/*
 *.opendb
 *.sdf
 *.sdf
+*.opensdf
