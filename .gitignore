@@ -58,3 +58,7 @@ Release/*
 *.user
 *.ipch
 *.png
+*.suo
+*.opendb
+*.sdf
+*.sdf

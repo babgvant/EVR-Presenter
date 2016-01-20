@@ -27,6 +27,7 @@
 #include <Windows.h>
 #include <intsafe.h>
 #include <math.h>
+#include <cmath>
 
 #include <mfapi.h>
 #include <mfidl.h>

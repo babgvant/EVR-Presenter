@@ -51,6 +51,9 @@
 #define MSDK_MEMCPY_VAR(dstVarName, src, count) memcpy_s(&(dstVarName), sizeof(dstVarName), (src), (count))
 const DWORD PRESENTER_BUFFER_COUNT = 3;
 
+extern "C" const GUID __declspec(selectany) DXVA2_VideoProcProgressiveDevice =
+{ 0x5a54a0c9, 0xc7ec, 0x4bd9,{ 0x8e, 0xde, 0xf3, 0xc7, 0x5d, 0xc4, 0x39, 0x3b } };
+
 class D3DPresentEngine : public SchedulerCallback
 {
 public:
@@ -132,12 +135,12 @@ protected:
 	double m_AvgTimeDelta;
 
 	// various structures for DXVA2 calls
-    //DXVA2_VideoDesc                 m_VideoDesc;
-    //DXVA2_VideoProcessBltParams     m_BltParams; 
+    DXVA2_VideoDesc                 m_VideoDesc;
+    DXVA2_VideoProcessBltParams     m_BltParams; 
     //DXVA2_VideoSample               m_Sample;
 
-	//IDirectXVideoProcessorService   *m_pDXVAVPS;            // Service required to create video processors
-    //IDirectXVideoProcessor          *m_pDXVAVP;
+	IDirectXVideoProcessorService   *m_pDXVAVPS;            // Service required to create video processors
+    IDirectXVideoProcessor          *m_pDXVAVP;
 	//IDirect3DSurface9               *m_pRenderSurface;      // The surface which is passed to render
     //IDirect3DSurface9               *m_pMixerSurfaces[PRESENTER_BUFFER_COUNT]; // The surfaces, which are used by mixer
 	

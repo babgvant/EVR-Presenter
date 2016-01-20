@@ -43,22 +43,22 @@ HRESULT FindAdapter(IDirect3D9 *pD3D9, HMONITOR hMonitor, UINT *puAdapterID);
 //-----------------------------------------------------------------------------
 
 D3DPresentEngine::D3DPresentEngine(HRESULT& hr) : 
-    m_hwnd(NULL),
-    m_DeviceResetToken(0),
-    m_pD3D9(NULL),
-    m_pDevice(NULL),
-    m_pDeviceManager(NULL),
-    m_pSurfaceRepaint(NULL),
-	m_bufferCount(4)/*,
-	m_pRenderSurface(NULL),
-    m_pDXVAVPS(NULL),
-	m_pDXVAVP(NULL)*/
+    m_hwnd(NULL)
+    , m_DeviceResetToken(0)
+    , m_pD3D9(NULL)
+    , m_pDevice(NULL)
+    , m_pDeviceManager(NULL)
+    , m_pSurfaceRepaint(NULL)
+	, m_bufferCount(4)/*
+	, m_pRenderSurface(NULL)*/
+    , m_pDXVAVPS(NULL)
+	, m_pDXVAVP(NULL)
 {
     SetRectEmpty(&m_rcDestRect);
 
     ZeroMemory(&m_DisplayMode, sizeof(m_DisplayMode));
-	//ZeroMemory(&m_VideoDesc, sizeof(m_VideoDesc));
- //   ZeroMemory(&m_BltParams, sizeof(m_BltParams));
+	ZeroMemory(&m_VideoDesc, sizeof(m_VideoDesc));
+    ZeroMemory(&m_BltParams, sizeof(m_BltParams));
  //   ZeroMemory(&m_Sample, sizeof(m_Sample));
 
  //   for (UINT i = 0; i < PRESENTER_BUFFER_COUNT; i++)
@@ -66,33 +66,33 @@ D3DPresentEngine::D3DPresentEngine(HRESULT& hr) :
  //       m_pMixerSurfaces[i] = NULL;
  //   }
 
-	// Initialize DXVA structures
-    //DXVA2_AYUVSample16 color = {0x8000, 0x8000, 0x1000, 0xffff};
+	//Initialize DXVA structures
+    DXVA2_AYUVSample16 color = {0x8000, 0x8000, 0x1000, 0xffff};
 
-    //DXVA2_ExtendedFormat format = { DXVA2_SampleProgressiveFrame,           // SampleFormat
-    //                                DXVA2_VideoChromaSubsampling_MPEG2,     // VideoChromaSubsampling
-    //                                DXVA2_NominalRange_Normal,              // NominalRange
-    //                                DXVA2_VideoTransferMatrix_BT709,        // VideoTransferMatrix
-    //                                DXVA2_VideoLighting_dim,                // VideoLighting
-    //                                DXVA2_VideoPrimaries_BT709,             // VideoPrimaries
-    //                                DXVA2_VideoTransFunc_709                // VideoTransferFunction            
-    //                                };
+    DXVA2_ExtendedFormat format = { DXVA2_SampleProgressiveFrame,           // SampleFormat
+                                    DXVA2_VideoChromaSubsampling_MPEG2,     // VideoChromaSubsampling
+                                    DXVA2_NominalRange_Normal,              // NominalRange
+                                    DXVA2_VideoTransferMatrix_BT709,        // VideoTransferMatrix
+                                    DXVA2_VideoLighting_dim,                // VideoLighting
+                                    DXVA2_VideoPrimaries_BT709,             // VideoPrimaries
+                                    DXVA2_VideoTransFunc_709                // VideoTransferFunction            
+                                    };
 
-    //// init m_VideoDesc structure
-    //MSDK_MEMCPY_VAR(m_VideoDesc.SampleFormat, &format, sizeof(DXVA2_ExtendedFormat));
-    //m_VideoDesc.SampleWidth                  = 256;
-    //m_VideoDesc.SampleHeight                 = 256;    
-    //m_VideoDesc.InputSampleFreq.Numerator    = 60;
-    //m_VideoDesc.InputSampleFreq.Denominator  = 1;
-    //m_VideoDesc.OutputFrameFreq.Numerator    = 60;
-    //m_VideoDesc.OutputFrameFreq.Denominator  = 1;
+    // init m_VideoDesc structure
+    MSDK_MEMCPY_VAR(m_VideoDesc.SampleFormat, &format, sizeof(DXVA2_ExtendedFormat));
+    m_VideoDesc.SampleWidth                  = 256;
+    m_VideoDesc.SampleHeight                 = 256;    
+    m_VideoDesc.InputSampleFreq.Numerator    = 60;
+    m_VideoDesc.InputSampleFreq.Denominator  = 1;
+    m_VideoDesc.OutputFrameFreq.Numerator    = 60;
+    m_VideoDesc.OutputFrameFreq.Denominator  = 1;
 
-    //// init m_BltParams structure
-    //MSDK_MEMCPY_VAR(m_BltParams.DestFormat, &format, sizeof(DXVA2_ExtendedFormat));
-    //MSDK_MEMCPY_VAR(m_BltParams.BackgroundColor, &color, sizeof(DXVA2_AYUVSample16));
+    // init m_BltParams structure
+    MSDK_MEMCPY_VAR(m_BltParams.DestFormat, &format, sizeof(DXVA2_ExtendedFormat));
+    MSDK_MEMCPY_VAR(m_BltParams.BackgroundColor, &color, sizeof(DXVA2_AYUVSample16));
 
-    //m_BltParams.BackgroundColor = color;
-    //m_BltParams.DestFormat      = format;
+    m_BltParams.BackgroundColor = color;
+    m_BltParams.DestFormat      = format;
 
     //// init m_Sample structure
     //m_Sample.Start = 0;
@@ -136,7 +136,8 @@ D3DPresentEngine::~D3DPresentEngine()
  //       SAFE_RELEASE(m_pMixerSurfaces[i]);
  //   }
 
- //   SAFE_RELEASE(m_pDXVAVPS);
+    SAFE_RELEASE(m_pDXVAVPS);
+	SAFE_RELEASE(m_pDXVAVP);
 }
 
 //-----------------------------------------------------------------------------
@@ -650,10 +651,10 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
     CHECK_HR(hr = m_pDeviceManager->ResetDevice(pDevice, m_DeviceResetToken));
 
 	// Create DXVA2 Video Processor Service.
-    //CHECK_HR(hr = DXVA2CreateVideoService(pDevice, _uuidof(IDirectXVideoProcessorService), (void**)&m_pDXVAVPS)); 
+    CHECK_HR(hr = DXVA2CreateVideoService(pDevice, _uuidof(IDirectXVideoProcessorService), (void**)&m_pDXVAVPS)); 
 
 	//// Create VPP device for the L channel
- //   CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(DXVA2_VideoProcProgressiveDevice, &m_VideoDesc, D3DFMT_X8R8G8B8, 1, &m_pDXVAVP));
+    CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(DXVA2_VideoProcProgressiveDevice, &m_VideoDesc, D3DFMT_X8R8G8B8, 1, &m_pDXVAVP));
 
     SAFE_RELEASE(m_pDevice);
 
