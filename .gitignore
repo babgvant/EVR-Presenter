@@ -63,3 +63,5 @@ Release/*
 *.sdf
 *.sdf
 *.opensdf
+*.sdf
+*.suo

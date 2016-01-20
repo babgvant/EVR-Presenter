@@ -1778,6 +1778,8 @@ HRESULT EVRCustomPresenter::RenegotiateMediaType()
 		
     }
 
+	//TODO: set input video frame size and recreate VPP
+
 	//DWORD nValidTypes = ValidMixerTypes.GetCount();
 
 	//for (size_t i = 0; i < nValidTypes; ++i) {

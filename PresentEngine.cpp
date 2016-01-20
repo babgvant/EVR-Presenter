@@ -49,8 +49,8 @@ D3DPresentEngine::D3DPresentEngine(HRESULT& hr) :
     , m_pDevice(NULL)
     , m_pDeviceManager(NULL)
     , m_pSurfaceRepaint(NULL)
-	, m_bufferCount(4)/*
-	, m_pRenderSurface(NULL)*/
+	, m_bufferCount(4)
+	, m_pRenderSurface(NULL)
     , m_pDXVAVPS(NULL)
 	, m_pDXVAVP(NULL)
 {
@@ -59,12 +59,12 @@ D3DPresentEngine::D3DPresentEngine(HRESULT& hr) :
     ZeroMemory(&m_DisplayMode, sizeof(m_DisplayMode));
 	ZeroMemory(&m_VideoDesc, sizeof(m_VideoDesc));
     ZeroMemory(&m_BltParams, sizeof(m_BltParams));
- //   ZeroMemory(&m_Sample, sizeof(m_Sample));
+    ZeroMemory(&m_Sample, sizeof(m_Sample));
 
- //   for (UINT i = 0; i < PRESENTER_BUFFER_COUNT; i++)
- //   {
- //       m_pMixerSurfaces[i] = NULL;
- //   }
+    for (UINT i = 0; i < PRESENTER_BUFFER_COUNT; i++)
+    {
+        m_pMixerSurfaces[i] = NULL;
+    }
 
 	//Initialize DXVA structures
     DXVA2_AYUVSample16 color = {0x8000, 0x8000, 0x1000, 0xffff};
@@ -95,11 +95,11 @@ D3DPresentEngine::D3DPresentEngine(HRESULT& hr) :
     m_BltParams.DestFormat      = format;
 
     //// init m_Sample structure
-    //m_Sample.Start = 0;
-    //m_Sample.End = 1;
-    //m_Sample.SampleFormat = format;
-    //m_Sample.PlanarAlpha.Fraction = 0;
-    //m_Sample.PlanarAlpha.Value = 1;   
+    m_Sample.Start = 0;
+    m_Sample.End = 1;
+    m_Sample.SampleFormat = format;
+    m_Sample.PlanarAlpha.Fraction = 0;
+    m_Sample.PlanarAlpha.Value = 1;   
 
     ZeroMemory(&m_DisplayMode, sizeof(m_DisplayMode));
 	m_SampleWidth = -1;
@@ -131,10 +131,10 @@ D3DPresentEngine::~D3DPresentEngine()
     SAFE_RELEASE(m_pDeviceManager);
     SAFE_RELEASE(m_pD3D9);
 	
-	//for (int i = 0; i < PRESENTER_BUFFER_COUNT; i++)
- //   {
- //       SAFE_RELEASE(m_pMixerSurfaces[i]);
- //   }
+	for (int i = 0; i < PRESENTER_BUFFER_COUNT; i++)
+    {
+        SAFE_RELEASE(m_pMixerSurfaces[i]);
+    }
 
     SAFE_RELEASE(m_pDXVAVPS);
 	SAFE_RELEASE(m_pDXVAVP);
@@ -281,10 +281,76 @@ HRESULT D3DPresentEngine::SetDestinationRect(const RECT& rcDest)
 // D3DPresentEngine renders the video frame by presenting the swap chain.
 //-----------------------------------------------------------------------------
 
-HRESULT D3DPresentEngine::CreateVideoSamples(
-    IMFMediaType *pFormat, 
-    VideoSampleList& videoSampleQueue
-    )
+//HRESULT D3DPresentEngine::CreateVideoSamples(
+//    IMFMediaType *pFormat, 
+//    VideoSampleList& videoSampleQueue
+//    )
+//{
+//    if (m_hwnd == NULL)
+//    {
+//        return MF_E_INVALIDREQUEST;
+//    }
+//
+//    if (pFormat == NULL)
+//    {
+//        return MF_E_UNEXPECTED;
+//    }
+//
+//    HRESULT hr = S_OK;
+//    D3DPRESENT_PARAMETERS pp;
+//
+//    IDirect3DSwapChain9 *pSwapChain = NULL;    // Swap chain
+//    IMFSample *pVideoSample = NULL;            // Sampl
+//    
+//    AutoLock lock(m_ObjectLock);
+//
+//    ReleaseResources();
+//
+//    // Get the swap chain parameters from the media type.
+//    CHECK_HR(hr = GetSwapChainPresentParameters(pFormat, &pp));
+//
+//    //UpdateDestRect();
+//
+//	// Create the video samples.
+//    for (int i = 0; i < m_bufferCount; i++)
+//    {
+//        // Create a new swap chain.
+//        CHECK_HR(hr = m_pDevice->CreateAdditionalSwapChain(&pp, &pSwapChain));
+//        
+//        // Create the video sample from the swap chain.
+//        CHECK_HR(hr = CreateD3DSample(pSwapChain, &pVideoSample));
+//
+//        // Add it to the list.
+//        CHECK_HR(hr = videoSampleQueue.InsertBack(pVideoSample));
+//
+//        // Set the swap chain pointer as a custom attribute on the sample. This keeps
+//        // a reference count on the swap chain, so that the swap chain is kept alive
+//        // for the duration of the sample's lifetime.
+//        CHECK_HR(hr = pVideoSample->SetUnknown(MFSamplePresenter_SampleSwapChain, pSwapChain));
+//
+//        SAFE_RELEASE(pVideoSample);
+//        SAFE_RELEASE(pSwapChain);
+//    }
+//
+//    // Let the derived class create any additional D3D resources that it needs.
+//    CHECK_HR(hr = OnCreateVideoSamples(pp));
+//
+//done:
+//    if (FAILED(hr))
+//    {
+//        ReleaseResources();
+//    }
+//        
+//    SAFE_RELEASE(pSwapChain);
+//    SAFE_RELEASE(pVideoSample);
+//    return hr;
+//}
+
+//-----------------------------------------------------------------------------
+// CreateVideoSamples
+//-----------------------------------------------------------------------------
+
+HRESULT D3DPresentEngine::CreateVideoSamples(IMFMediaType *pFormat, VideoSampleList& videoSampleQueue)
 {
     if (m_hwnd == NULL)
     {
@@ -296,57 +362,59 @@ HRESULT D3DPresentEngine::CreateVideoSamples(
         return MF_E_UNEXPECTED;
     }
 
-    HRESULT hr = S_OK;
-    D3DPRESENT_PARAMETERS pp;
+    HRESULT     hr = S_OK;
+    D3DCOLOR    clrBlack = D3DCOLOR_ARGB(0xFF, 0x00, 0x00, 0x00);
+    IMFSample*  pVideoSample = NULL; 
+    HANDLE      hDevice = 0;
+    UINT        nWidth(0), nHeight(0);
+    IDirectXVideoProcessorService* pVideoProcessorService = NULL;
 
-    IDirect3DSwapChain9 *pSwapChain = NULL;    // Swap chain
-    IMFSample *pVideoSample = NULL;            // Sampl
-    
     AutoLock lock(m_ObjectLock);
 
     ReleaseResources();
 
-    // Get the swap chain parameters from the media type.
-    CHECK_HR(hr = GetSwapChainPresentParameters(pFormat, &pp));
+    UpdateDestRect();
 
-    //UpdateDestRect();
+    // Get sizes for allocated surfaces
+    CHECK_HR(hr = MFGetAttributeSize(pFormat, MF_MT_FRAME_SIZE, &nWidth, &nHeight));
 
-	// Create the video samples.
-    for (int i = 0; i < m_bufferCount; i++)
+    // Get device handle
+    CHECK_HR(hr = m_pDeviceManager->OpenDeviceHandle(&hDevice));
+
+    // Get IDirectXVideoProcessorService
+    CHECK_HR(hr = m_pDeviceManager->GetVideoService(hDevice, __uuidof(IDirectXVideoProcessorService), (void**)&pVideoProcessorService));
+
+    // Create IDirect3DSurface9 surface
+    CHECK_HR(hr = pVideoProcessorService->CreateSurface(nWidth, nHeight, PRESENTER_BUFFER_COUNT - 1, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, 0, DXVA2_VideoProcessorRenderTarget, (IDirect3DSurface9 **)&m_pMixerSurfaces, NULL));
+
+    // Create the video samples.
+    for (int i = 0; i < PRESENTER_BUFFER_COUNT; i++)
     {
-        // Create a new swap chain.
-        CHECK_HR(hr = m_pDevice->CreateAdditionalSwapChain(&pp, &pSwapChain));
-        
-        // Create the video sample from the swap chain.
-        CHECK_HR(hr = CreateD3DSample(pSwapChain, &pVideoSample));
+        // Fill it with black.
+        CHECK_HR(hr = m_pDevice->ColorFill(m_pMixerSurfaces[i], NULL, clrBlack));
+
+        // Create the sample.
+        CHECK_HR(hr = MFCreateVideoSampleFromSurface(m_pMixerSurfaces[i], &pVideoSample));
+
+        pVideoSample->SetUINT32(MFSampleExtension_CleanPoint, 0);
 
         // Add it to the list.
-        CHECK_HR(hr = videoSampleQueue.InsertBack(pVideoSample));
-
-        // Set the swap chain pointer as a custom attribute on the sample. This keeps
-        // a reference count on the swap chain, so that the swap chain is kept alive
-        // for the duration of the sample's lifetime.
-        CHECK_HR(hr = pVideoSample->SetUnknown(MFSamplePresenter_SampleSwapChain, pSwapChain));
-
-        SAFE_RELEASE(pVideoSample);
-        SAFE_RELEASE(pSwapChain);
+        hr = videoSampleQueue.InsertBack(pVideoSample);
+        SAFE_RELEASE(pVideoSample);        
+        CHECK_HR(hr);
     }
 
-    // Let the derived class create any additional D3D resources that it needs.
-    CHECK_HR(hr = OnCreateVideoSamples(pp));
-
 done:
+    SAFE_RELEASE(pVideoProcessorService);
+    m_pDeviceManager->CloseDeviceHandle(hDevice);
+
     if (FAILED(hr))
     {
         ReleaseResources();
     }
-        
-    SAFE_RELEASE(pSwapChain);
-    SAFE_RELEASE(pVideoSample);
+
     return hr;
 }
-
-
 
 //-----------------------------------------------------------------------------
 // ReleaseResources
@@ -360,6 +428,11 @@ void D3DPresentEngine::ReleaseResources()
     OnReleaseResources();
 
     SAFE_RELEASE(m_pSurfaceRepaint);
+	
+    for (int i = 0; i < PRESENTER_BUFFER_COUNT; i++)
+    {
+        SAFE_RELEASE(m_pMixerSurfaces[i]);
+    }
 }
 
 
@@ -412,6 +485,54 @@ HRESULT D3DPresentEngine::CheckDeviceState(DeviceState *pState)
     }
 
 done:
+    return hr;
+}
+
+//-----------------------------------------------------------------------------
+// PresentSurface
+//
+// Presents a surface that contains a video frame.
+//
+// pSurface: Pointer to the surface.
+
+HRESULT D3DPresentEngine::PresentSurface( IDirect3DSurface9* pSurface, LONG nView /*= 0*/ )
+{
+    HRESULT hr = S_OK;
+    RECT target;
+
+    if (m_hwnd == NULL)
+    {
+        return MF_E_INVALIDREQUEST;
+    }
+
+    if (NULL == m_pDXVAVP)
+    {
+        return E_FAIL;
+    }
+
+    //GetClientRect(m_hwnd, &target);
+
+    m_BltParams.TargetRect = 
+        //m_Sample.SrcRect =
+            m_Sample.DstRect = m_rcDestRect;
+	//m_Sample.SrcRect = 
+
+    m_Sample.SrcSurface =  pSurface; 
+
+    hr = m_pDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &m_pRenderSurface);
+
+    // process the surface
+    hr = m_pDXVAVP->VideoProcessBlt(m_pRenderSurface, &m_BltParams, &m_Sample, 1, NULL);
+
+    m_pRenderSurface->Release();
+
+    if (SUCCEEDED(hr))
+    {
+        hr = m_pDevice->PresentEx(&m_rcDestRect, &m_rcDestRect, m_hwnd, NULL, 0);
+    }
+
+    LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface failed.", hr);
+
     return hr;
 }
 
@@ -484,11 +605,16 @@ HRESULT D3DPresentEngine::PresentSample(IMFSample* pSample, LONGLONG llTarget, L
 		m_SampleWidth = d.Width;
 		m_SampleHeight = d.Height;
 
+		m_Sample.SrcRect.right = d.Width;
+		m_Sample.SrcRect.bottom = d.Height;
+
         // Get the swap chain from the surface.
-        CHECK_HR(hr = pSurface->GetContainer(__uuidof(IDirect3DSwapChain9), (LPVOID*)&pSwapChain));
+//        CHECK_HR(hr = pSurface->GetContainer(__uuidof(IDirect3DSwapChain9), (LPVOID*)&pSwapChain));
 
         // Present the swap chain.
-        CHECK_HR(hr = PresentSwapChain(pSwapChain, pSurface));
+        //CHECK_HR(hr = PresentSwapChain(pSwapChain, pSurface));
+		
+        CHECK_HR(hr = PresentSurface(pSurface));
 
         // Store this pointer in case we need to repaint the surface.
         CopyComPointer(m_pSurfaceRepaint, pSurface);
@@ -591,6 +717,11 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
         hwnd = GetDesktopWindow();   
     }
 
+	if(m_rcDestRect.bottom == 0 || m_rcDestRect.right == 0)
+	{
+		GetClientRect(hwnd, &m_rcDestRect);
+	}
+
     // Note: The presenter creates additional swap chains to present the
     // video frames. Therefore, it does not use the device's implicit 
     // swap chain, so the size of the back buffer here is 1 x 1.
@@ -598,10 +729,10 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
     D3DPRESENT_PARAMETERS pp;
     ZeroMemory(&pp, sizeof(pp));
 
-    pp.BackBufferWidth = 1;
-    pp.BackBufferHeight = 1;
+    pp.BackBufferWidth = m_rcDestRect.right;//1;
+    pp.BackBufferHeight = m_rcDestRect.bottom;//1;
     pp.Windowed = TRUE;
-    pp.SwapEffect = D3DSWAPEFFECT_COPY;
+    pp.SwapEffect = D3DSWAPEFFECT_OVERLAY;//D3DSWAPEFFECT_COPY;
     pp.BackBufferFormat = D3DFMT_UNKNOWN;
 	pp.BackBufferCount = 1; //added
     pp.hDeviceWindow = hwnd;
@@ -650,12 +781,26 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
     // Reset the D3DDeviceManager with the new device 
     CHECK_HR(hr = m_pDeviceManager->ResetDevice(pDevice, m_DeviceResetToken));
 
+	SAFE_RELEASE(m_pDXVAVPS);
+	SAFE_RELEASE(m_pDXVAVP);
+
 	// Create DXVA2 Video Processor Service.
     CHECK_HR(hr = DXVA2CreateVideoService(pDevice, _uuidof(IDirectXVideoProcessorService), (void**)&m_pDXVAVPS)); 
 
-	//// Create VPP device for the L channel
-    CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(DXVA2_VideoProcProgressiveDevice, &m_VideoDesc, D3DFMT_X8R8G8B8, 1, &m_pDXVAVP));
+	UINT count;
+    GUID* guids = NULL;
 
+    CHECK_HR(hr = m_pDXVAVPS->GetVideoProcessorDeviceGuids(&m_VideoDesc, &count, &guids));
+
+	// Create VPP device 
+	if(count > 0)
+	{
+		CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(guids[0], &m_VideoDesc, D3DFMT_X8R8G8B8, 1, &m_pDXVAVP));
+	}
+	else
+	{
+		CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(DXVA2_VideoProcProgressiveDevice, &m_VideoDesc, D3DFMT_X8R8G8B8, 1, &m_pDXVAVP));
+	}
     SAFE_RELEASE(m_pDevice);
 
     m_pDevice = pDevice;

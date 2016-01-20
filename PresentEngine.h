@@ -108,6 +108,7 @@ protected:
     virtual HRESULT OnCreateVideoSamples(D3DPRESENT_PARAMETERS& pp) { return S_OK; }
     virtual void    OnReleaseResources() { }
 
+	virtual HRESULT PresentSurface(IDirect3DSurface9* pSurface, LONG nView = 0);
     virtual HRESULT PresentSwapChain(IDirect3DSwapChain9* pSwapChain, IDirect3DSurface9* pSurface);
     virtual void    PaintFrameWithGDI();
 
@@ -137,12 +138,12 @@ protected:
 	// various structures for DXVA2 calls
     DXVA2_VideoDesc                 m_VideoDesc;
     DXVA2_VideoProcessBltParams     m_BltParams; 
-    //DXVA2_VideoSample               m_Sample;
+    DXVA2_VideoSample               m_Sample;
 
 	IDirectXVideoProcessorService   *m_pDXVAVPS;            // Service required to create video processors
     IDirectXVideoProcessor          *m_pDXVAVP;
-	//IDirect3DSurface9               *m_pRenderSurface;      // The surface which is passed to render
-    //IDirect3DSurface9               *m_pMixerSurfaces[PRESENTER_BUFFER_COUNT]; // The surfaces, which are used by mixer
+	IDirect3DSurface9               *m_pRenderSurface;      // The surface which is passed to render
+    IDirect3DSurface9               *m_pMixerSurfaces[PRESENTER_BUFFER_COUNT]; // The surfaces, which are used by mixer
 	
 private: // disallow copy and assign
     D3DPresentEngine(const D3DPresentEngine&);              
