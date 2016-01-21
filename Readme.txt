@@ -1,6 +1,6 @@
 /*	
  *
- *      Copyright (C) 2014 Andrew Van Til
+ *      Copyright (C) 2016 Andrew Van Til
  *      http://babgvant.com
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -57,12 +57,20 @@ Classes
 
 The main classes in this sample are the following:
 
-D3DPresentEngine: 
+PresentEngine: 
     Creates the Direct3D device, allocates Direct3D surfaces for 
     rendering, and presents the surfaces.
 
-EVRCustomPresenter: 
+Presenter: 
     Implements the custom presenter.
 
 Scheduler:
     Schedules when a sample should be displayed.
+	
+1.0.0.1
+- Initial release
+	
+1.0.0.2
+- Change from swap chain presentation to explicit
+- Explicitly scale surfaces before presentation
+- Add support for overlay presentation
