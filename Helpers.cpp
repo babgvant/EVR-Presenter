@@ -37,9 +37,9 @@
 #include "EVRPresenter.h"
 
 
-//-----------------------------------------------------------------------------
-// SamplePool class
-//-----------------------------------------------------------------------------
+ //-----------------------------------------------------------------------------
+ // SamplePool class
+ //-----------------------------------------------------------------------------
 
 SamplePool::SamplePool() : m_bInitialized(FALSE), m_cPending(0)
 {
@@ -60,38 +60,38 @@ SamplePool::~SamplePool()
 
 HRESULT SamplePool::GetSample(IMFSample **ppSample)
 {
-    AutoLock lock(m_lock);
+  AutoLock lock(m_lock);
 
-    if (!m_bInitialized)
-    {
-        return MF_E_NOT_INITIALIZED;
-    }
+  if (!m_bInitialized)
+  {
+    return MF_E_NOT_INITIALIZED;
+  }
 
-    if (m_VideoSampleQueue.IsEmpty())
-    {
-        return MF_E_SAMPLEALLOCATOR_EMPTY;
-    }
+  if (m_VideoSampleQueue.IsEmpty())
+  {
+    return MF_E_SAMPLEALLOCATOR_EMPTY;
+  }
 
-    HRESULT hr = S_OK;
-    IMFSample *pSample = NULL;
+  HRESULT hr = S_OK;
+  IMFSample *pSample = NULL;
 
-    // Get a sample from the allocated queue.
+  // Get a sample from the allocated queue.
 
-    // It doesn't matter if we pull them from the head or tail of the list,
-    // but when we get it back, we want to re-insert it onto the opposite end.
-    // (see ReturnSample)
+  // It doesn't matter if we pull them from the head or tail of the list,
+  // but when we get it back, we want to re-insert it onto the opposite end.
+  // (see ReturnSample)
 
-    CHECK_HR(hr = m_VideoSampleQueue.RemoveFront(&pSample));
+  CHECK_HR(hr = m_VideoSampleQueue.RemoveFront(&pSample));
 
-    m_cPending++;
+  m_cPending++;
 
-    // Give the sample to the caller.
-    *ppSample = pSample;
-    (*ppSample)->AddRef();
+  // Give the sample to the caller.
+  *ppSample = pSample;
+  (*ppSample)->AddRef();
 
 done:
-    SAFE_RELEASE(pSample);
-    return hr;
+  SAFE_RELEASE(pSample);
+  return hr;
 }
 
 //-----------------------------------------------------------------------------
@@ -100,23 +100,23 @@ done:
 // Returns a sample to the pool.
 //-----------------------------------------------------------------------------
 
-HRESULT SamplePool::ReturnSample(IMFSample *pSample) 
+HRESULT SamplePool::ReturnSample(IMFSample *pSample)
 {
-    AutoLock lock(m_lock);
+  AutoLock lock(m_lock);
 
-    if (!m_bInitialized)
-    {
-        return MF_E_NOT_INITIALIZED;
-    }
+  if (!m_bInitialized)
+  {
+    return MF_E_NOT_INITIALIZED;
+  }
 
-    HRESULT hr = S_OK;
+  HRESULT hr = S_OK;
 
-    CHECK_HR(hr = m_VideoSampleQueue.InsertBack(pSample));
+  CHECK_HR(hr = m_VideoSampleQueue.InsertBack(pSample));
 
-    m_cPending--;
+  m_cPending--;
 
 done:
-    return hr;
+  return hr;
 }
 
 //-----------------------------------------------------------------------------
@@ -127,14 +127,14 @@ done:
 
 BOOL SamplePool::AreSamplesPending()
 {
-    AutoLock lock(m_lock);
+  AutoLock lock(m_lock);
 
-    if (!m_bInitialized)
-    {
-        return FALSE;
-    }
+  if (!m_bInitialized)
+  {
+    return FALSE;
+  }
 
-    return (m_cPending > 0);
+  return (m_cPending > 0);
 }
 
 
@@ -146,34 +146,34 @@ BOOL SamplePool::AreSamplesPending()
 
 HRESULT SamplePool::Initialize(VideoSampleList& samples)
 {
-    AutoLock lock(m_lock);
+  AutoLock lock(m_lock);
 
-    if (m_bInitialized)
-    {
-        return MF_E_INVALIDREQUEST;
-    }
+  if (m_bInitialized)
+  {
+    return MF_E_INVALIDREQUEST;
+  }
 
-    HRESULT hr = S_OK;
-    IMFSample *pSample = NULL;
+  HRESULT hr = S_OK;
+  IMFSample *pSample = NULL;
 
-    // Move these samples into our allocated queue.
-    VideoSampleList::POSITION pos = samples.FrontPosition();
-    while (pos != samples.EndPosition())
-    {
-        CHECK_HR(hr = samples.GetItemPos(pos, &pSample));
-        CHECK_HR(hr = m_VideoSampleQueue.InsertBack(pSample));
+  // Move these samples into our allocated queue.
+  VideoSampleList::POSITION pos = samples.FrontPosition();
+  while (pos != samples.EndPosition())
+  {
+    CHECK_HR(hr = samples.GetItemPos(pos, &pSample));
+    CHECK_HR(hr = m_VideoSampleQueue.InsertBack(pSample));
 
-        pos = samples.Next(pos);
-        SAFE_RELEASE(pSample);
-    }
+    pos = samples.Next(pos);
+    SAFE_RELEASE(pSample);
+  }
 
-    m_bInitialized = TRUE;
+  m_bInitialized = TRUE;
 
 done:
-    samples.Clear();
+  samples.Clear();
 
-    SAFE_RELEASE(pSample);
-    return hr;
+  SAFE_RELEASE(pSample);
+  return hr;
 }
 
 
@@ -185,13 +185,13 @@ done:
 
 HRESULT SamplePool::Clear()
 {
-    HRESULT hr = S_OK;
+  HRESULT hr = S_OK;
 
-    AutoLock lock(m_lock);
+  AutoLock lock(m_lock);
 
-    m_VideoSampleQueue.Clear();
-    m_bInitialized = FALSE;
-    m_cPending = 0;
-    return S_OK;
+  m_VideoSampleQueue.Clear();
+  m_bInitialized = FALSE;
+  m_cPending = 0;
+  return S_OK;
 }
 

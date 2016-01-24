@@ -22,7 +22,7 @@
 
 #include <tchar.h>
 #include <d3dx9.h>
-//#include "moreuuids.h"
+ //#include "moreuuids.h"
 
 
 #include "IPinHook.h"
@@ -49,8 +49,8 @@ IPinCVtbl* g_pPinCVtbl = nullptr;
 IMemInputPinCVtbl* g_pMemInputPinCVtbl = nullptr;
 
 struct D3DFORMAT_TYPE {
-    int Format;
-    LPCTSTR Description;
+  int Format;
+  LPCTSTR Description;
 };
 
 const D3DFORMAT_TYPE D3DFormatType[] = {
@@ -112,8 +112,8 @@ const D3DFORMAT_TYPE D3DFormatType[] = {
 const LPCTSTR DXVAVersion[] = { _T("DXVA "), _T("DXVA1"), _T("DXVA2") };
 
 struct DXVA2_DECODER {
-    const GUID* Guid;
-    LPCTSTR Description;
+  const GUID* Guid;
+  LPCTSTR Description;
 };
 
 // Additionnal DXVA GUIDs
@@ -195,43 +195,43 @@ DEFINE_GUID(CLSID_AC3Filter, 0xA753A1EC, 0x973E, 0x4718, 0xAF, 0x8E, 0xA3, 0xF5,
 
 LPCTSTR GetDXVAMode(const GUID* guidDecoder)
 {
-    /*int nPos = 0;
+  /*int nPos = 0;
 
-    for (int i = 1; i < _countof(DXVA2Decoder); i++) {
-        if (*guidDecoder == *DXVA2Decoder[i].Guid) {
-            nPos = i;
-            break;
-        }
-    }*/
+  for (int i = 1; i < _countof(DXVA2Decoder); i++) {
+      if (*guidDecoder == *DXVA2Decoder[i].Guid) {
+          nPos = i;
+          break;
+      }
+  }*/
 
-    return L""; // DXVA2Decoder[nPos].Description;
+  return L""; // DXVA2Decoder[nPos].Description;
 }
 
 LPCTSTR GetDXVADecoderDescription()
 {
-    return GetDXVAMode(&g_guidDXVADecoder);
+  return GetDXVAMode(&g_guidDXVADecoder);
 }
 
 LPCTSTR GetDXVAVersion()
 {
-    return DXVAVersion[g_nDXVAVersion];
+  return DXVAVersion[g_nDXVAVersion];
 }
 
 void ClearDXVAState()
 {
-    g_guidDXVADecoder = GUID_NULL;
-    g_nDXVAVersion = 0;
+  g_guidDXVADecoder = GUID_NULL;
+  g_nDXVAVersion = 0;
 }
 
 LPCTSTR FindD3DFormat(const D3DFORMAT Format)
 {
-    for (int i = 0; i < _countof(D3DFormatType); i++) {
-        if (Format == D3DFormatType[i].Format) {
-            return D3DFormatType[i].Description;
-        }
+  for (int i = 0; i < _countof(D3DFormatType); i++) {
+    if (Format == D3DFormatType[i].Format) {
+      return D3DFormatType[i].Description;
     }
+  }
 
-    return D3DFormatType[0].Description;
+  return D3DFormatType[0].Description;
 }
 
 // === DirectShow hooks
@@ -239,88 +239,88 @@ static HRESULT(STDMETHODCALLTYPE* NewSegmentOrg)(IPinC* This, /* [in] */ REFEREN
 
 static HRESULT STDMETHODCALLTYPE NewSegmentMine(IPinC* This, /* [in] */ REFERENCE_TIME tStart, /* [in] */ REFERENCE_TIME tStop, /* [in] */ double dRate)
 {
-    g_tSegmentStart = tStart;
-    return NewSegmentOrg(This, tStart, tStop, dRate);
+  g_tSegmentStart = tStart;
+  return NewSegmentOrg(This, tStart, tStop, dRate);
 }
 
 static HRESULT(STDMETHODCALLTYPE* ReceiveOrg)(IMemInputPinC* This, IMediaSample* pSample) = nullptr;
 
 static HRESULT STDMETHODCALLTYPE ReceiveMineI(IMemInputPinC* This, IMediaSample* pSample)
 {
-    REFERENCE_TIME rtStart, rtStop;
-    if (pSample && SUCCEEDED(pSample->GetTime(&rtStart, &rtStop))) {
-        g_tSampleStart = rtStart;
-    }
-    return ReceiveOrg(This, pSample);
+  REFERENCE_TIME rtStart, rtStop;
+  if (pSample && SUCCEEDED(pSample->GetTime(&rtStart, &rtStop))) {
+    g_tSampleStart = rtStart;
+  }
+  return ReceiveOrg(This, pSample);
 }
 
 static HRESULT STDMETHODCALLTYPE ReceiveMine(IMemInputPinC* This, IMediaSample* pSample)
 {
-    // Support ffdshow queueing.
-    // To avoid black out on pause, we have to lock g_ffdshowReceive to synchronize with CMainFrame::OnPlayPause.
-    return ReceiveMineI(This, pSample);
+  // Support ffdshow queueing.
+  // To avoid black out on pause, we have to lock g_ffdshowReceive to synchronize with CMainFrame::OnPlayPause.
+  return ReceiveMineI(This, pSample);
 }
 
 void UnhookNewSegmentAndReceive()
 {
-    BOOL res;
-    DWORD flOldProtect = 0;
+  BOOL res;
+  DWORD flOldProtect = 0;
 
-    // Casimir666 : unhook previous VTables
-    if (g_pPinCVtbl && g_pMemInputPinCVtbl) {
-        res = VirtualProtect(g_pPinCVtbl, sizeof(IPinCVtbl), PAGE_WRITECOPY, &flOldProtect);
-        if (g_pPinCVtbl->NewSegment == NewSegmentMine) {
-            g_pPinCVtbl->NewSegment = NewSegmentOrg;
-        }
-        res = VirtualProtect(g_pPinCVtbl, sizeof(IPinCVtbl), flOldProtect, &flOldProtect);
-
-        res = VirtualProtect(g_pMemInputPinCVtbl, sizeof(IMemInputPinCVtbl), PAGE_WRITECOPY, &flOldProtect);
-        if (g_pMemInputPinCVtbl->Receive == ReceiveMine) {
-            g_pMemInputPinCVtbl->Receive = ReceiveOrg;
-        }
-        res = VirtualProtect(g_pMemInputPinCVtbl, sizeof(IMemInputPinCVtbl), flOldProtect, &flOldProtect);
-
-        g_pPinCVtbl         = nullptr;
-        g_pMemInputPinCVtbl = nullptr;
-        NewSegmentOrg       = nullptr;
-        ReceiveOrg          = nullptr;
+  // Casimir666 : unhook previous VTables
+  if (g_pPinCVtbl && g_pMemInputPinCVtbl) {
+    res = VirtualProtect(g_pPinCVtbl, sizeof(IPinCVtbl), PAGE_WRITECOPY, &flOldProtect);
+    if (g_pPinCVtbl->NewSegment == NewSegmentMine) {
+      g_pPinCVtbl->NewSegment = NewSegmentOrg;
     }
+    res = VirtualProtect(g_pPinCVtbl, sizeof(IPinCVtbl), flOldProtect, &flOldProtect);
+
+    res = VirtualProtect(g_pMemInputPinCVtbl, sizeof(IMemInputPinCVtbl), PAGE_WRITECOPY, &flOldProtect);
+    if (g_pMemInputPinCVtbl->Receive == ReceiveMine) {
+      g_pMemInputPinCVtbl->Receive = ReceiveOrg;
+    }
+    res = VirtualProtect(g_pMemInputPinCVtbl, sizeof(IMemInputPinCVtbl), flOldProtect, &flOldProtect);
+
+    g_pPinCVtbl = nullptr;
+    g_pMemInputPinCVtbl = nullptr;
+    NewSegmentOrg = nullptr;
+    ReceiveOrg = nullptr;
+  }
 }
 
 bool HookNewSegmentAndReceive(IPinC* pPinC, IMemInputPinC* pMemInputPinC)
 {
-    if (!pPinC || !pMemInputPinC) {
-        return false;
-    }
+  if (!pPinC || !pMemInputPinC) {
+    return false;
+  }
 
-    g_tSegmentStart = 0;
-    g_tSampleStart = 0;
+  g_tSegmentStart = 0;
+  g_tSampleStart = 0;
 
-    BOOL res;
-    DWORD flOldProtect = 0;
+  BOOL res;
+  DWORD flOldProtect = 0;
 
-    UnhookNewSegmentAndReceive();
+  UnhookNewSegmentAndReceive();
 
-    // Casimir666 : change sizeof(IPinC) to sizeof(IPinCVtbl) to fix crash with EVR hack on Vista!
-    res = VirtualProtect(pPinC->lpVtbl, sizeof(IPinCVtbl), PAGE_WRITECOPY, &flOldProtect);
-    if (NewSegmentOrg == nullptr) {
-        NewSegmentOrg = pPinC->lpVtbl->NewSegment;
-    }
-    pPinC->lpVtbl->NewSegment = NewSegmentMine; // Function sets global variable(s)
-    res = VirtualProtect(pPinC->lpVtbl, sizeof(IPinCVtbl), flOldProtect, &flOldProtect);
+  // Casimir666 : change sizeof(IPinC) to sizeof(IPinCVtbl) to fix crash with EVR hack on Vista!
+  res = VirtualProtect(pPinC->lpVtbl, sizeof(IPinCVtbl), PAGE_WRITECOPY, &flOldProtect);
+  if (NewSegmentOrg == nullptr) {
+    NewSegmentOrg = pPinC->lpVtbl->NewSegment;
+  }
+  pPinC->lpVtbl->NewSegment = NewSegmentMine; // Function sets global variable(s)
+  res = VirtualProtect(pPinC->lpVtbl, sizeof(IPinCVtbl), flOldProtect, &flOldProtect);
 
-    // Casimir666 : change sizeof(IMemInputPinC) to sizeof(IMemInputPinCVtbl) to fix crash with EVR hack on Vista!
-    res = VirtualProtect(pMemInputPinC->lpVtbl, sizeof(IMemInputPinCVtbl), PAGE_WRITECOPY, &flOldProtect);
-    if (ReceiveOrg == nullptr) {
-        ReceiveOrg = pMemInputPinC->lpVtbl->Receive;
-    }
-    pMemInputPinC->lpVtbl->Receive = ReceiveMine; // Function sets global variable(s)
-    res = VirtualProtect(pMemInputPinC->lpVtbl, sizeof(IMemInputPinCVtbl), flOldProtect, &flOldProtect);
+  // Casimir666 : change sizeof(IMemInputPinC) to sizeof(IMemInputPinCVtbl) to fix crash with EVR hack on Vista!
+  res = VirtualProtect(pMemInputPinC->lpVtbl, sizeof(IMemInputPinCVtbl), PAGE_WRITECOPY, &flOldProtect);
+  if (ReceiveOrg == nullptr) {
+    ReceiveOrg = pMemInputPinC->lpVtbl->Receive;
+  }
+  pMemInputPinC->lpVtbl->Receive = ReceiveMine; // Function sets global variable(s)
+  res = VirtualProtect(pMemInputPinC->lpVtbl, sizeof(IMemInputPinCVtbl), flOldProtect, &flOldProtect);
 
-    g_pPinCVtbl = pPinC->lpVtbl;
-    g_pMemInputPinCVtbl = pMemInputPinC->lpVtbl;
+  g_pPinCVtbl = pPinC->lpVtbl;
+  g_pMemInputPinCVtbl = pMemInputPinC->lpVtbl;
 
-    return true;
+  return true;
 }
 
 
@@ -336,31 +336,31 @@ inline static void LogDXVA_Bitstream(BYTE* pBuffer, int nSize) {}
 
 static HRESULT STDMETHODCALLTYPE GetCompBufferInfoMine(IAMVideoAcceleratorC* This, const GUID* pGuid, const AMVAUncompDataInfo* pamvaUncompDataInfo, LPDWORD pdwNumTypesCompBuffers, LPAMVACompBufferInfo pamvaCompBufferInfo)
 {
-    if (pGuid) {
-        g_guidDXVADecoder = *pGuid;
-        g_nDXVAVersion = 1;
+  if (pGuid) {
+    g_guidDXVADecoder = *pGuid;
+    g_nDXVAVersion = 1;
 
-    }
+  }
 
-    HRESULT hr = GetCompBufferInfoOrg(This, pGuid, pamvaUncompDataInfo, pdwNumTypesCompBuffers, pamvaCompBufferInfo);
+  HRESULT hr = GetCompBufferInfoOrg(This, pGuid, pamvaUncompDataInfo, pdwNumTypesCompBuffers, pamvaCompBufferInfo);
 
-    return hr;
+  return hr;
 }
 
 void HookAMVideoAccelerator(IAMVideoAcceleratorC* pAMVideoAcceleratorC)
 {
-    g_guidDXVADecoder = GUID_NULL;
-    g_nDXVAVersion = 0;
+  g_guidDXVADecoder = GUID_NULL;
+  g_nDXVAVersion = 0;
 
-    BOOL res;
-    DWORD flOldProtect = 0;
-    res = VirtualProtect(pAMVideoAcceleratorC->lpVtbl, sizeof(IAMVideoAcceleratorC), PAGE_WRITECOPY, &flOldProtect);
+  BOOL res;
+  DWORD flOldProtect = 0;
+  res = VirtualProtect(pAMVideoAcceleratorC->lpVtbl, sizeof(IAMVideoAcceleratorC), PAGE_WRITECOPY, &flOldProtect);
 
-    if (GetCompBufferInfoOrg == nullptr) {
-        GetCompBufferInfoOrg = pAMVideoAcceleratorC->lpVtbl->GetCompBufferInfo;
-    }
+  if (GetCompBufferInfoOrg == nullptr) {
+    GetCompBufferInfoOrg = pAMVideoAcceleratorC->lpVtbl->GetCompBufferInfo;
+  }
 
-    pAMVideoAcceleratorC->lpVtbl->GetCompBufferInfo = GetCompBufferInfoMine; // Function sets global variable(s)
+  pAMVideoAcceleratorC->lpVtbl->GetCompBufferInfo = GetCompBufferInfoMine; // Function sets global variable(s)
 
 }
 
@@ -371,124 +371,124 @@ void HookAMVideoAccelerator(IAMVideoAcceleratorC* pAMVideoAcceleratorC)
 // Why was the code duplicated ?
 interface IDirectXVideoDecoderServiceC;
 struct IDirectXVideoDecoderServiceCVtbl {
-    BEGIN_INTERFACE
+  BEGIN_INTERFACE
     HRESULT(STDMETHODCALLTYPE* QueryInterface)(IDirectXVideoDecoderServiceC* pThis, /* [in] */ REFIID riid, /* [iid_is][out] */ void** ppvObject);
-    ULONG(STDMETHODCALLTYPE* AddRef)(IDirectXVideoDecoderServiceC* pThis);
-    ULONG(STDMETHODCALLTYPE* Release)(IDirectXVideoDecoderServiceC*   pThis);
-    HRESULT(STDMETHODCALLTYPE* CreateSurface)(
-        IDirectXVideoDecoderServiceC* pThis,
-        __in  UINT Width,
-        __in  UINT Height,
-        __in  UINT BackBuffers,
-        __in  D3DFORMAT Format,
-        __in  D3DPOOL Pool,
-        __in  DWORD Usage,
-        __in  DWORD DxvaType,
-        __out_ecount(BackBuffers + 1)
-        IDirect3DSurface9** ppSurface, __inout_opt  HANDLE* pSharedHandle);
+  ULONG(STDMETHODCALLTYPE* AddRef)(IDirectXVideoDecoderServiceC* pThis);
+  ULONG(STDMETHODCALLTYPE* Release)(IDirectXVideoDecoderServiceC*   pThis);
+  HRESULT(STDMETHODCALLTYPE* CreateSurface)(
+    IDirectXVideoDecoderServiceC* pThis,
+    __in  UINT Width,
+    __in  UINT Height,
+    __in  UINT BackBuffers,
+    __in  D3DFORMAT Format,
+    __in  D3DPOOL Pool,
+    __in  DWORD Usage,
+    __in  DWORD DxvaType,
+    __out_ecount(BackBuffers + 1)
+    IDirect3DSurface9** ppSurface, __inout_opt  HANDLE* pSharedHandle);
 
-    HRESULT(STDMETHODCALLTYPE* GetDecoderDeviceGuids)(
-        IDirectXVideoDecoderServiceC* pThis,
-        __out UINT* pCount,
-        __deref_out_ecount_opt(*pCount) GUID** pGuids);
+  HRESULT(STDMETHODCALLTYPE* GetDecoderDeviceGuids)(
+    IDirectXVideoDecoderServiceC* pThis,
+    __out UINT* pCount,
+    __deref_out_ecount_opt(*pCount) GUID** pGuids);
 
-    HRESULT(STDMETHODCALLTYPE* GetDecoderRenderTargets)(
-        IDirectXVideoDecoderServiceC* pThis,
-        __in REFGUID Guid,
-        __out UINT* pCount,
-        __deref_out_ecount_opt(*pCount) D3DFORMAT** pFormats);
+  HRESULT(STDMETHODCALLTYPE* GetDecoderRenderTargets)(
+    IDirectXVideoDecoderServiceC* pThis,
+    __in REFGUID Guid,
+    __out UINT* pCount,
+    __deref_out_ecount_opt(*pCount) D3DFORMAT** pFormats);
 
-    HRESULT(STDMETHODCALLTYPE* GetDecoderConfigurations)(
-        IDirectXVideoDecoderServiceC* pThis,
-        __in REFGUID Guid,
-        __in const DXVA2_VideoDesc* pVideoDesc,
-        __reserved void* pReserved,
-        __out UINT* pCount,
-        __deref_out_ecount_opt(*pCount) DXVA2_ConfigPictureDecode** ppConfigs);
+  HRESULT(STDMETHODCALLTYPE* GetDecoderConfigurations)(
+    IDirectXVideoDecoderServiceC* pThis,
+    __in REFGUID Guid,
+    __in const DXVA2_VideoDesc* pVideoDesc,
+    __reserved void* pReserved,
+    __out UINT* pCount,
+    __deref_out_ecount_opt(*pCount) DXVA2_ConfigPictureDecode** ppConfigs);
 
-    HRESULT(STDMETHODCALLTYPE* CreateVideoDecoder)(
-        IDirectXVideoDecoderServiceC* pThis,
-        __in REFGUID Guid,
-        __in const DXVA2_VideoDesc* pVideoDesc,
-        __in const DXVA2_ConfigPictureDecode* pConfig,
-        __in_ecount(NumRenderTargets) IDirect3DSurface9** ppDecoderRenderTargets,
-        __in UINT NumRenderTargets,
-        __deref_out IDirectXVideoDecoder** ppDecode);
-
-    END_INTERFACE
-};
-
-interface IDirectXVideoDecoderServiceC {
-    CONST_VTBL struct IDirectXVideoDecoderServiceCVtbl* lpVtbl;
-};
-
-
-IDirectXVideoDecoderServiceCVtbl* g_pIDirectXVideoDecoderServiceCVtbl = nullptr;
-static HRESULT(STDMETHODCALLTYPE* CreateVideoDecoderOrg)(IDirectXVideoDecoderServiceC* pThis,
-        __in REFGUID Guid,
-        __in const DXVA2_VideoDesc* pVideoDesc,
-        __in const DXVA2_ConfigPictureDecode* pConfig,
-        __in_ecount(NumRenderTargets)
-        IDirect3DSurface9** ppDecoderRenderTargets, __in  UINT NumRenderTargets, __deref_out  IDirectXVideoDecoder** ppDecode) = nullptr;
-#ifdef _DEBUG
-static HRESULT(STDMETHODCALLTYPE* GetDecoderDeviceGuidsOrg)(IDirectXVideoDecoderServiceC* pThis, __out  UINT* pCount, __deref_out_ecount_opt(*pCount)  GUID** pGuids) = nullptr;
-static HRESULT(STDMETHODCALLTYPE* GetDecoderConfigurationsOrg)(IDirectXVideoDecoderServiceC* pThis, __in  REFGUID Guid, __in const DXVA2_VideoDesc* pVideoDesc, __reserved void* pReserved, __out UINT* pCount, __deref_out_ecount_opt(*pCount)  DXVA2_ConfigPictureDecode** ppConfigs) = nullptr;
-#endif
-
-static HRESULT STDMETHODCALLTYPE CreateVideoDecoderMine(
+  HRESULT(STDMETHODCALLTYPE* CreateVideoDecoder)(
     IDirectXVideoDecoderServiceC* pThis,
     __in REFGUID Guid,
     __in const DXVA2_VideoDesc* pVideoDesc,
     __in const DXVA2_ConfigPictureDecode* pConfig,
     __in_ecount(NumRenderTargets) IDirect3DSurface9** ppDecoderRenderTargets,
     __in UINT NumRenderTargets,
-    __deref_out IDirectXVideoDecoder** ppDecode)
+    __deref_out IDirectXVideoDecoder** ppDecode);
+
+  END_INTERFACE
+};
+
+interface IDirectXVideoDecoderServiceC {
+  CONST_VTBL struct IDirectXVideoDecoderServiceCVtbl* lpVtbl;
+};
+
+
+IDirectXVideoDecoderServiceCVtbl* g_pIDirectXVideoDecoderServiceCVtbl = nullptr;
+static HRESULT(STDMETHODCALLTYPE* CreateVideoDecoderOrg)(IDirectXVideoDecoderServiceC* pThis,
+  __in REFGUID Guid,
+  __in const DXVA2_VideoDesc* pVideoDesc,
+  __in const DXVA2_ConfigPictureDecode* pConfig,
+  __in_ecount(NumRenderTargets)
+  IDirect3DSurface9** ppDecoderRenderTargets, __in  UINT NumRenderTargets, __deref_out  IDirectXVideoDecoder** ppDecode) = nullptr;
+#ifdef _DEBUG
+static HRESULT(STDMETHODCALLTYPE* GetDecoderDeviceGuidsOrg)(IDirectXVideoDecoderServiceC* pThis, __out  UINT* pCount, __deref_out_ecount_opt(*pCount)  GUID** pGuids) = nullptr;
+static HRESULT(STDMETHODCALLTYPE* GetDecoderConfigurationsOrg)(IDirectXVideoDecoderServiceC* pThis, __in  REFGUID Guid, __in const DXVA2_VideoDesc* pVideoDesc, __reserved void* pReserved, __out UINT* pCount, __deref_out_ecount_opt(*pCount)  DXVA2_ConfigPictureDecode** ppConfigs) = nullptr;
+#endif
+
+static HRESULT STDMETHODCALLTYPE CreateVideoDecoderMine(
+  IDirectXVideoDecoderServiceC* pThis,
+  __in REFGUID Guid,
+  __in const DXVA2_VideoDesc* pVideoDesc,
+  __in const DXVA2_ConfigPictureDecode* pConfig,
+  __in_ecount(NumRenderTargets) IDirect3DSurface9** ppDecoderRenderTargets,
+  __in UINT NumRenderTargets,
+  __deref_out IDirectXVideoDecoder** ppDecode)
 {
-    //  DebugBreak();
-    //  ((DXVA2_VideoDesc*)pVideoDesc)->Format = (D3DFORMAT)0x3231564E;
-    g_guidDXVADecoder = Guid;
-    g_nDXVAVersion = 2;
+  //  DebugBreak();
+  //  ((DXVA2_VideoDesc*)pVideoDesc)->Format = (D3DFORMAT)0x3231564E;
+  g_guidDXVADecoder = Guid;
+  g_nDXVAVersion = 2;
 
-    HRESULT hr = CreateVideoDecoderOrg(pThis, Guid, pVideoDesc, pConfig, ppDecoderRenderTargets, NumRenderTargets, ppDecode);
+  HRESULT hr = CreateVideoDecoderOrg(pThis, Guid, pVideoDesc, pConfig, ppDecoderRenderTargets, NumRenderTargets, ppDecode);
 
-    if (FAILED(hr)) {
-        g_guidDXVADecoder = GUID_NULL;
-    }
-    GetDXVADecoderDescription();
+  if (FAILED(hr)) {
+    g_guidDXVADecoder = GUID_NULL;
+  }
+  GetDXVADecoderDescription();
 
-    return hr;
+  return hr;
 }
 
 void HookDirectXVideoDecoderService(void* pIDirectXVideoDecoderService)
 {
-    IDirectXVideoDecoderServiceC* pIDirectXVideoDecoderServiceC = (IDirectXVideoDecoderServiceC*) pIDirectXVideoDecoderService;
+  IDirectXVideoDecoderServiceC* pIDirectXVideoDecoderServiceC = (IDirectXVideoDecoderServiceC*)pIDirectXVideoDecoderService;
 
-    BOOL res;
-    DWORD flOldProtect = 0;
+  BOOL res;
+  DWORD flOldProtect = 0;
 
-    // Casimir666 : unhook previous VTables
-    if (g_pIDirectXVideoDecoderServiceCVtbl) {
-        res = VirtualProtect(g_pIDirectXVideoDecoderServiceCVtbl, sizeof(IDirectXVideoDecoderServiceCVtbl), PAGE_WRITECOPY, &flOldProtect);
-        if (g_pIDirectXVideoDecoderServiceCVtbl->CreateVideoDecoder == CreateVideoDecoderMine) {
-            g_pIDirectXVideoDecoderServiceCVtbl->CreateVideoDecoder = CreateVideoDecoderOrg;
-        }
-
-        res = VirtualProtect(g_pIDirectXVideoDecoderServiceCVtbl, sizeof(IDirectXVideoDecoderServiceCVtbl), flOldProtect, &flOldProtect);
-
-        g_pIDirectXVideoDecoderServiceCVtbl = nullptr;
-        CreateVideoDecoderOrg = nullptr;
-        g_guidDXVADecoder = GUID_NULL;
-        g_nDXVAVersion = 0;
+  // Casimir666 : unhook previous VTables
+  if (g_pIDirectXVideoDecoderServiceCVtbl) {
+    res = VirtualProtect(g_pIDirectXVideoDecoderServiceCVtbl, sizeof(IDirectXVideoDecoderServiceCVtbl), PAGE_WRITECOPY, &flOldProtect);
+    if (g_pIDirectXVideoDecoderServiceCVtbl->CreateVideoDecoder == CreateVideoDecoderMine) {
+      g_pIDirectXVideoDecoderServiceCVtbl->CreateVideoDecoder = CreateVideoDecoderOrg;
     }
 
-    if (!g_pIDirectXVideoDecoderServiceCVtbl && pIDirectXVideoDecoderService) {
-        res = VirtualProtect(pIDirectXVideoDecoderServiceC->lpVtbl, sizeof(IDirectXVideoDecoderServiceCVtbl), PAGE_WRITECOPY, &flOldProtect);
+    res = VirtualProtect(g_pIDirectXVideoDecoderServiceCVtbl, sizeof(IDirectXVideoDecoderServiceCVtbl), flOldProtect, &flOldProtect);
 
-        CreateVideoDecoderOrg = pIDirectXVideoDecoderServiceC->lpVtbl->CreateVideoDecoder;
-        pIDirectXVideoDecoderServiceC->lpVtbl->CreateVideoDecoder = CreateVideoDecoderMine;
+    g_pIDirectXVideoDecoderServiceCVtbl = nullptr;
+    CreateVideoDecoderOrg = nullptr;
+    g_guidDXVADecoder = GUID_NULL;
+    g_nDXVAVersion = 0;
+  }
 
-        res = VirtualProtect(pIDirectXVideoDecoderServiceC->lpVtbl, sizeof(IDirectXVideoDecoderServiceCVtbl), flOldProtect, &flOldProtect);
+  if (!g_pIDirectXVideoDecoderServiceCVtbl && pIDirectXVideoDecoderService) {
+    res = VirtualProtect(pIDirectXVideoDecoderServiceC->lpVtbl, sizeof(IDirectXVideoDecoderServiceCVtbl), PAGE_WRITECOPY, &flOldProtect);
 
-        g_pIDirectXVideoDecoderServiceCVtbl = pIDirectXVideoDecoderServiceC->lpVtbl;
-    }
+    CreateVideoDecoderOrg = pIDirectXVideoDecoderServiceC->lpVtbl->CreateVideoDecoder;
+    pIDirectXVideoDecoderServiceC->lpVtbl->CreateVideoDecoder = CreateVideoDecoderMine;
+
+    res = VirtualProtect(pIDirectXVideoDecoderServiceC->lpVtbl, sizeof(IDirectXVideoDecoderServiceCVtbl), flOldProtect, &flOldProtect);
+
+    g_pIDirectXVideoDecoderServiceCVtbl = pIDirectXVideoDecoderServiceC->lpVtbl;
+  }
 }
