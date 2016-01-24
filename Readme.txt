@@ -74,3 +74,7 @@ Scheduler:
 - Change from swap chain presentation to explicit
 - Explicitly scale surfaces before presentation
 - Add support for overlay presentation
+
+1.0.0.3
+- Code formating changes
+- Recreate DX devices if video processing fails
