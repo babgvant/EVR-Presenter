@@ -498,7 +498,7 @@ done:
 //
 // pSurface: Pointer to the surface.
 
-HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface, LONG nView /*= 0*/)
+HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
 {
   HRESULT hr = S_OK;
   RECT target;
@@ -513,25 +513,35 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface, LONG nView
     return E_FAIL;
   }
 
-  //GetClientRect(m_hwnd, &target);
+  GetClientRect(m_hwnd, &target);
 
-  m_BltParams.TargetRect =
-    //m_Sample.SrcRect =
-    m_Sample.DstRect = m_rcDestRect;
+  m_BltParams.TargetRect = m_Sample.DstRect = m_rcDestRect;
   //m_Sample.SrcRect = 
 
   m_Sample.SrcSurface = pSurface;
 
   hr = m_pDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &m_pRenderSurface);
-
+  LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDevice->GetBackBuffer failed.", hr);
   // process the surface
-  hr = m_pDXVAVP->VideoProcessBlt(m_pRenderSurface, &m_BltParams, &m_Sample, 1, NULL);
 
-  m_pRenderSurface->Release();
+  if (SUCCEEDED(hr) && m_pRenderSurface)
+  {
+    hr = m_pDXVAVP->VideoProcessBlt(m_pRenderSurface, &m_BltParams, &m_Sample, 1, NULL);
+    LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDXVAVP->VideoProcessBlt failed.", hr);
+    if (!SUCCEEDED(hr))
+    {
+      //try to recover
+      CreateD3DDevice();
+      hr = S_OK;
+    }
+  }
+
+  SAFE_RELEASE(m_pRenderSurface);
 
   if (SUCCEEDED(hr))
   {
     hr = m_pDevice->PresentEx(&m_rcDestRect, &m_rcDestRect, m_hwnd, NULL, 0);
+    LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDevice->PresentEx failed.", hr);
   }
 
   LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface failed.", hr);

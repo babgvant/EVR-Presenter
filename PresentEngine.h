@@ -140,7 +140,7 @@ protected:
   virtual HRESULT OnCreateVideoSamples(D3DPRESENT_PARAMETERS& pp) { return S_OK; }
   virtual void    OnReleaseResources() { }
 
-  virtual HRESULT PresentSurface(IDirect3DSurface9* pSurface, LONG nView = 0);
+  virtual HRESULT PresentSurface(IDirect3DSurface9* pSurface);
   virtual HRESULT PresentSwapChain(IDirect3DSwapChain9* pSwapChain, IDirect3DSurface9* pSurface);
   virtual void    PaintFrameWithGDI();
 
