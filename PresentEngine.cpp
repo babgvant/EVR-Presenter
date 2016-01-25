@@ -513,40 +513,103 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
     return E_FAIL;
   }
 
+  D3DSURFACE_DESC desc;
+  ZeroMemory(&desc, sizeof(desc));
+  hr = pSurface->GetDesc(&desc);
+
   GetClientRect(m_hwnd, &target);
 
-  m_BltParams.TargetRect = m_Sample.DstRect = m_rcDestRect;
-  //m_Sample.SrcRect = 
+  target = m_rcDestRect;
 
-  m_Sample.SrcSurface = pSurface;
-
-  hr = m_pDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &m_pRenderSurface);
-  LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDevice->GetBackBuffer failed.", hr);
-  // process the surface
-
-  if (SUCCEEDED(hr) && m_pRenderSurface)
+  if (ClipToSurface(pSurface, m_Sample.SrcRect, &target))
   {
-    hr = m_pDXVAVP->VideoProcessBlt(m_pRenderSurface, &m_BltParams, &m_Sample, 1, NULL);
-    LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDXVAVP->VideoProcessBlt failed.", hr);
-    if (!SUCCEEDED(hr))
+    m_BltParams.TargetRect = target;
+    m_Sample.DstRect = target;
+    //m_Sample.SrcRect = 
+    m_Sample.SrcSurface = pSurface;
+
+    hr = m_pDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &m_pRenderSurface);
+    LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDevice->GetBackBuffer failed.", hr);
+    // process the surface
+
+    if (SUCCEEDED(hr) && m_pRenderSurface)
     {
-      //try to recover
-      CreateD3DDevice();
-      hr = S_OK;
+      hr = m_pDXVAVP->VideoProcessBlt(m_pRenderSurface, &m_BltParams, &m_Sample, 1, NULL);
+      LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDXVAVP->VideoProcessBlt failed.", hr);
     }
-  }
 
-  SAFE_RELEASE(m_pRenderSurface);
+    SAFE_RELEASE(m_pRenderSurface);
 
-  if (SUCCEEDED(hr))
-  {
-    hr = m_pDevice->PresentEx(&m_rcDestRect, &m_rcDestRect, m_hwnd, NULL, 0);
-    LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDevice->PresentEx failed.", hr);
-  }
+    if (SUCCEEDED(hr))
+    {
+      hr = m_pDevice->PresentEx(&target, &m_rcDestRect, m_hwnd, NULL, 0);
+      LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDevice->PresentEx failed.", hr);
+    }
 
-  LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface failed.", hr);
+    LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface failed.", hr);
+  }  
 
   return hr;
+}
+
+RECT D3DPresentEngine::ScaleRectangle(const RECT& input, const RECT& src, const RECT& dst)
+{
+  RECT rect;
+
+  UINT src_dx = src.right - src.left;
+  UINT src_dy = src.bottom - src.top;
+
+  UINT dst_dx = dst.right - dst.left;
+  UINT dst_dy = dst.bottom - dst.top;
+
+  //
+  // Scale input rectangle within src rectangle to dst rectangle.
+  //
+  rect.left = input.left   * dst_dx / src_dx;
+  rect.right = input.right  * dst_dx / src_dx;
+  rect.top = input.top    * dst_dy / src_dy;
+  rect.bottom = input.bottom * dst_dy / src_dy;
+
+  return rect;
+}
+
+bool D3DPresentEngine::ClipToSurface(IDirect3DSurface9* pSurface, RECT s, LPRECT d)
+{
+  D3DSURFACE_DESC desc;
+  ZeroMemory(&desc, sizeof(desc));
+  if (FAILED(pSurface->GetDesc(&desc))) {
+    return false;
+  }
+
+  int w = desc.Width, h = desc.Height;
+  int sw = s.right - s.left, sh = s.bottom - s.top;
+  int dw = d->right - d->left, dh = d->bottom - d->top;
+
+  if (d->left >= w || d->right < 0 || d->top >= h || d->bottom < 0
+    || sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0) {
+    s.top=s.bottom=s.left=s.right = 0;
+    d->top = d->bottom = d->left = d->right = 0;
+    return true;
+  }
+
+  if (d->right > w) {
+    s.right -= (d->right - w) * sw / dw;
+    d->right = w;
+  }
+  if (d->bottom > h) {
+    s.bottom -= (d->bottom - h) * sh / dh;
+    d->bottom = h;
+  }
+  if (d->left < 0) {
+    s.left += (0 - d->left) * sw / dw;
+    d->left = 0;
+  }
+  if (d->top < 0) {
+    s.top += (0 - d->top) * sh / dh;
+    d->top = 0;
+  }
+
+  return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -735,23 +798,6 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
     GetClientRect(hwnd, &m_rcDestRect);
   }
 
-  // Note: The presenter creates additional swap chains to present the
-  // video frames. Therefore, it does not use the device's implicit 
-  // swap chain, so the size of the back buffer here is 1 x 1.
-
-  D3DPRESENT_PARAMETERS pp;
-  ZeroMemory(&pp, sizeof(pp));
-
-  pp.BackBufferWidth = m_rcDestRect.right;//1;
-  pp.BackBufferHeight = m_rcDestRect.bottom;//1;
-  pp.Windowed = TRUE;
-  pp.SwapEffect = D3DSWAPEFFECT_COPY;
-  pp.BackBufferFormat = D3DFMT_X8R8G8B8;// D3DFMT_UNKNOWN;
-  pp.BackBufferCount = 1; //added
-  pp.hDeviceWindow = hwnd;
-  pp.Flags = D3DPRESENTFLAG_VIDEO | D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
-  pp.PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
-
   // Find the monitor for this window.
   if (m_hwnd)
   {
@@ -760,6 +806,9 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
     // Find the corresponding adapter.
     CHECK_HR(hr = FindAdapter(m_pD3D9, hMonitor, &uAdapterID));
   }
+
+  // Get the adapter display mode.
+  CHECK_HR(hr = m_pD3D9->GetAdapterDisplayMode(uAdapterID, &m_DisplayMode));
 
   // Get the device caps for this adapter.
   CHECK_HR(hr = m_pD3D9->GetDeviceCaps(uAdapterID, D3DDEVTYPE_HAL, &ddCaps));
@@ -772,6 +821,23 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
   {
     vp = D3DCREATE_SOFTWARE_VERTEXPROCESSING;
   }
+
+  // Note: The presenter creates additional swap chains to present the
+  // video frames. Therefore, it does not use the device's implicit 
+  // swap chain, so the size of the back buffer here is 1 x 1.
+
+  D3DPRESENT_PARAMETERS pp;
+  ZeroMemory(&pp, sizeof(pp));
+
+  pp.BackBufferWidth = m_DisplayMode.Width;// abs(m_rcDestRect.right - m_rcDestRect.left);//1;
+  pp.BackBufferHeight = m_DisplayMode.Height;// abs(m_rcDestRect.bottom - m_rcDestRect.top);//1;
+  pp.Windowed = TRUE;
+  pp.SwapEffect = D3DSWAPEFFECT_COPY;
+  pp.BackBufferFormat = D3DFMT_X8R8G8B8;// D3DFMT_UNKNOWN;
+  pp.BackBufferCount = 1; //added
+  pp.hDeviceWindow = hwnd;
+  pp.Flags = D3DPRESENTFLAG_VIDEO | D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
+  pp.PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
 
   if (m_bRequestOverlay && (ddCaps.Caps & D3DCAPS_OVERLAY))
   {
@@ -788,9 +854,6 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
     NULL,
     &pDevice
     ));
-
-  // Get the adapter display mode.
-  CHECK_HR(hr = m_pD3D9->GetAdapterDisplayMode(uAdapterID, &m_DisplayMode));
 
   CHECK_HR(hr = pDevice->ResetEx(&pp, NULL));
 
@@ -820,6 +883,7 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
     CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(DXVA2_VideoProcProgressiveDevice, &m_VideoDesc, D3DFMT_X8R8G8B8, 1, &m_pDXVAVP));
   }
   SAFE_RELEASE(m_pDevice);
+  CoTaskMemFree(guids);
 
   m_pDevice = pDevice;
   m_pDevice->AddRef();

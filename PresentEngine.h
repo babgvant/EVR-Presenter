@@ -98,6 +98,8 @@ public:
   UINT    Height() const { return m_DisplayMode.Height; }
 
   HRESULT CreateSurface(UINT Width, UINT Height, D3DFORMAT Format, IDirect3DSurface9** ppSurface);
+  RECT ScaleRectangle(const RECT& input, const RECT& src, const RECT& dst);
+  bool ClipToSurface(IDirect3DSurface9* pSurface, RECT s, LPRECT d);
 
   STDMETHODIMP SetBool(EVRCPSetting setting, bool value) {
     HRESULT hr = S_OK;
