@@ -744,6 +744,8 @@ HRESULT D3DPresentEngine::InitializeD3D()
 {
   HRESULT hr = S_OK;
 
+  TRACE((L"InitializeD3D\n"));
+
   assert(m_pD3D9 == NULL);
   assert(m_pDeviceManager == NULL);
 
@@ -793,10 +795,10 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
     hwnd = GetDesktopWindow();
   }
 
-  if (m_rcDestRect.bottom == 0 || m_rcDestRect.right == 0)
-  {
-    GetClientRect(hwnd, &m_rcDestRect);
-  }
+  //if (m_rcDestRect.bottom == 0 || m_rcDestRect.right == 0)
+  //{
+  //  GetClientRect(hwnd, &m_rcDestRect);
+  //}
 
   // Find the monitor for this window.
   if (m_hwnd)
@@ -809,6 +811,19 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
 
   // Get the adapter display mode.
   CHECK_HR(hr = m_pD3D9->GetAdapterDisplayMode(uAdapterID, &m_DisplayMode));
+
+  D3DADAPTER_IDENTIFIER9 adapterIdentifier;
+  TCHAR strGUID[50];
+
+  if (m_pD3D9->GetAdapterIdentifier(uAdapterID, 0, &adapterIdentifier) == S_OK) {
+    if ((::StringFromGUID2(adapterIdentifier.DeviceIdentifier, strGUID, 50) > 0)) {
+      strncpy(m_AdapterName, adapterIdentifier.Description, MAX_DEVICE_IDENTIFIER_STRING);
+       TRACE((L"Adapter Found: %S\n", m_AdapterName));
+    }
+  }
+
+  
+  TRACE((L"InitializeD3D\n"));
 
   // Get the device caps for this adapter.
   CHECK_HR(hr = m_pD3D9->GetDeviceCaps(uAdapterID, D3DDEVTYPE_HAL, &ddCaps));

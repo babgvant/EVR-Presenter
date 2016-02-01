@@ -152,6 +152,7 @@ protected:
   int							            m_SampleWidth;
   int							            m_SampleHeight;
   bool                        m_bRequestOverlay;
+  char                       m_AdapterName[MAX_DEVICE_IDENTIFIER_STRING];
 
   HWND                        m_hwnd;                 // Application-provided destination window.
   RECT                        m_rcDestRect;           // Destination rectangle.
