@@ -145,6 +145,7 @@ protected:
   virtual HRESULT PresentSurface(IDirect3DSurface9* pSurface);
   virtual HRESULT PresentSwapChain(IDirect3DSwapChain9* pSwapChain, IDirect3DSurface9* pSurface);
   virtual void    PaintFrameWithGDI();
+  virtual void    BlackBackBuffer();
 
 protected:
   UINT                        m_DeviceResetToken;     // Reset token for the D3D device manager.

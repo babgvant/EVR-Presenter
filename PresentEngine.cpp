@@ -517,9 +517,14 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
   ZeroMemory(&desc, sizeof(desc));
   hr = pSurface->GetDesc(&desc);
 
-  GetClientRect(m_hwnd, &target);
+  //scope the lock just around rect retrival
+  {
+    // Race condition b/w presentation and the rectangle changing size
+    AutoLock lock(m_ObjectLock);
 
-  target = m_rcDestRect;
+    //GetClientRect(m_hwnd, &target);
+    target = m_rcDestRect;
+  }
 
   if (ClipToSurface(pSurface, m_Sample.SrcRect, &target))
   {
@@ -1009,6 +1014,27 @@ void D3DPresentEngine::PaintFrameWithGDI()
   }
   else
     TRACE((L"PaintFrameWithGDI failed\n"));
+}
+
+void D3DPresentEngine::BlackBackBuffer()
+{
+  HRESULT hr = S_OK;
+  D3DCOLOR    clrBlack = D3DCOLOR_ARGB(0xFF, 0x00, 0x00, 0x00);
+  IDirect3DSurface9* pSurface = NULL;
+
+  if (m_pDevice) 
+  {
+    hr = m_pDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pSurface);
+    LOG_MSG_IF_FAILED(L"D3DPresentEngine::BlackBackBuffer m_pDevice->GetBackBuffer failed.", hr);
+
+    if (pSurface)
+    {
+      CHECK_HR(hr = m_pDevice->ColorFill(pSurface, NULL, clrBlack));
+    }
+  }
+
+done:
+  SAFE_RELEASE(pSurface);
 }
 
 HRESULT D3DPresentEngine::CreateSurface(UINT Width, UINT Height, D3DFORMAT Format, IDirect3DSurface9** ppSurface)
