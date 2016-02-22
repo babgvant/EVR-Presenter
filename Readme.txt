@@ -78,3 +78,9 @@ Scheduler:
 1.0.0.3
 - Code formating changes
 - Recreate DX devices if video processing fails
+
+1.0.0.4
+- Lock rect retrival for thread safety
+
+1.0.0.5
+- More aggressively scope locking introduced in 1.0.0.4
