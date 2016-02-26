@@ -231,6 +231,8 @@ HRESULT D3DPresentEngine::SetVideoWindow(HWND hwnd)
 
   AutoLock lock(m_ObjectLock);
 
+  TRACE((L"SetVideoWindow: %d\n", hwnd));
+
   m_hwnd = hwnd;
 
   UpdateDestRect();
@@ -257,6 +259,8 @@ HRESULT D3DPresentEngine::SetDestinationRect(const RECT& rcDest)
   HRESULT hr = S_OK;
 
   AutoLock lock(m_ObjectLock);
+
+  TRACE((L"SetDestinationRect: OLD b: %d t: %d l: %d r: %d NEW  b: %d t: %d l: %d r: %d\n", m_rcDestRect.bottom, m_rcDestRect.top, m_rcDestRect.left, rcDest.right, rcDest.bottom, rcDest.top, rcDest.left, rcDest.right));
 
   PaintFrameWithGDI();
 
@@ -500,6 +504,8 @@ done:
 
 HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
 {
+  //TRACE((L"PresentSurface\n"));
+
   HRESULT hr = S_OK;
   RECT target;
 
@@ -1011,6 +1017,8 @@ void D3DPresentEngine::PaintFrameWithGDI()
     }
 
     ReleaseDC(m_hwnd, hdc);
+
+    TRACE((L"PaintFrameWithGDI: b: %d t: %d l: %d r: %d\n", m_rcDestRect.bottom, m_rcDestRect.top, m_rcDestRect.left, m_rcDestRect.right));
   }
   else
     TRACE((L"PaintFrameWithGDI failed\n"));
