@@ -131,6 +131,18 @@ public:
     return hr;
   }
 
+  void SetSubtitle(IDirect3DSurface9 *pSurfaceSubtitle, const RECT& src, const MFVideoNormalizedRect& nrcDest) {
+    AutoLock lock(m_SubtitleLock);
+
+    SAFE_RELEASE(m_pSurfaceSubtitle);
+    if (pSurfaceSubtitle)
+    {
+      m_pSurfaceSubtitle = pSurfaceSubtitle;
+      m_rcSubSrcRect = src;
+      m_nrcDest = nrcDest;
+    }
+  }
+
 protected:
   HRESULT InitializeD3D();
   //HRESULT GetSwapChainPresentParameters(IMFMediaType *pType, D3DPRESENT_PARAMETERS* pPP);
@@ -158,14 +170,18 @@ protected:
   HWND                        m_hwnd;                 // Application-provided destination window.
   RECT                        m_rcDestRect;           // Destination rectangle.
   D3DDISPLAYMODE              m_DisplayMode;          // Adapter's display mode.
+  RECT                        m_rcSubSrcRect;            
+  MFVideoNormalizedRect       m_nrcDest;
 
   CritSec                     m_ObjectLock;           // Thread lock for the D3D device.
+  CritSec                     m_SubtitleLock;           // Thread lock for the subtitle surface.
 
   // COM interfaces
   IDirect3D9Ex                *m_pD3D9;
   IDirect3DDevice9Ex          *m_pDevice;
   IDirect3DDeviceManager9     *m_pDeviceManager;        // Direct3D device manager.
   IDirect3DSurface9           *m_pSurfaceRepaint;       // Surface for repaint requests.
+  IDirect3DSurface9           *m_pSurfaceSubtitle;       // Surface for repaint requests.
 
   int m_DroppedFrames;
   int m_GoodFrames;
@@ -175,12 +191,13 @@ protected:
   // various structures for DXVA2 calls
   DXVA2_VideoDesc                 m_VideoDesc;
   DXVA2_VideoProcessBltParams     m_BltParams;
-  DXVA2_VideoSample               m_Sample;
+  DXVA2_VideoSample               m_Sample[2] = { 0 };
 
   IDirectXVideoProcessorService   *m_pDXVAVPS;            // Service required to create video processors
   IDirectXVideoProcessor          *m_pDXVAVP;
   IDirect3DSurface9               *m_pRenderSurface;      // The surface which is passed to render
   IDirect3DSurface9               *m_pMixerSurfaces[PRESENTER_BUFFER_COUNT]; // The surfaces, which are used by mixer
+  DXVA2_VideoProcessorCaps        m_VPCaps = { 0 };
 
 private: // disallow copy and assign
   D3DPresentEngine(const D3DPresentEngine&);

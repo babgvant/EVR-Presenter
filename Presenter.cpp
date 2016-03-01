@@ -335,7 +335,7 @@ HRESULT EVRCustomPresenter::InitServicePointers(IMFTopologyServiceLookup *pLooku
   SAFE_RELEASE(m_pClock);
   SAFE_RELEASE(m_pMixer);
   SAFE_RELEASE(m_pMediaEventSink);
-  SAFE_RELEASE(m_pMixerBitmap);
+  //SAFE_RELEASE(m_pMixerBitmap);
 
   // Ask for the clock. Optional, because the EVR might not have a clock.
   dwObjectCount = 1;
@@ -367,14 +367,14 @@ HRESULT EVRCustomPresenter::InitServicePointers(IMFTopologyServiceLookup *pLooku
   // Ask for the IMFVideoMixerBitmap interface
   dwObjectCount = 1;
 
-  CHECK_HR(hr = pLookup->LookupService(
-    MF_SERVICE_LOOKUP_GLOBAL,
-    0,
-    MR_VIDEO_MIXER_SERVICE,
-    __uuidof(IMFVideoMixerBitmap),
-    (void**)&m_pMixerBitmap,
-    &dwObjectCount
-    ));
+  //CHECK_HR(hr = pLookup->LookupService(
+  //  MF_SERVICE_LOOKUP_GLOBAL,
+  //  0,
+  //  MR_VIDEO_MIXER_SERVICE,
+  //  __uuidof(IMFVideoMixerBitmap),
+  //  (void**)&m_pMixerBitmap,
+  //  &dwObjectCount
+  //  ));
 
   // Ask for the EVR's event-sink interface. (Required.)
   dwObjectCount = 1;
@@ -446,7 +446,7 @@ HRESULT EVRCustomPresenter::ReleaseServicePointers()
 //SAFE_RELEASE(m_pMemInputPin);
   SAFE_RELEASE(m_SubtitleFrame);
   SAFE_RELEASE(m_pMediaType);
-  SAFE_RELEASE(m_pMixerBitmap);
+  //SAFE_RELEASE(m_pMixerBitmap);
   SAFE_RELEASE(m_pEvr);
 
   return hr;
@@ -1109,7 +1109,7 @@ EVRCustomPresenter::EVRCustomPresenter(HRESULT& hr) :
   , m_bEvrPinHooked(false)
   , m_rtStart(0)
   , m_rtStop(0)
-  , m_pMixerBitmap(NULL)
+  //, m_pMixerBitmap(NULL)
   , m_bSubtitleSet(false)
   , m_lastSubtitleId(0)
   , m_outputRange(MFNominalRange_16_235)
@@ -1170,7 +1170,7 @@ EVRCustomPresenter::~EVRCustomPresenter()
   SAFE_RELEASE(m_pMixer);
   SAFE_RELEASE(m_pMediaEventSink);
   SAFE_RELEASE(m_pMediaType);
-  SAFE_RELEASE(m_pMixerBitmap);
+  //SAFE_RELEASE(m_pMixerBitmap);
   SAFE_RELEASE(m_pEvr);
   //	_DeleteMediaType(m_pInputMediaType);
 
@@ -1226,8 +1226,8 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
   }
 
   SetEvent(m_hEvtDelivered);*/
-  if (!m_pMixerBitmap)
-    return S_OK;
+  //if (!m_pMixerBitmap)
+  //  return S_OK;
 
   if (subtitleFrame) //paint the subtitle
   {
@@ -1243,6 +1243,8 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
     {
       if (id != m_lastSubtitleId)
       {
+        TRACE((L"Update subtitle=%I64d\n", id));
+
         //we only need to change the subtitle if it's changed
         if (SUCCEEDED(hr = subtitleFrame->GetBitmap(0, &id, &p, &sz, (LPCVOID*)(&s), &pitch)))
         {
@@ -1264,26 +1266,21 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
                 nrcDest.top = (float)p.y / (float)clipRect.bottom;
                 nrcDest.left = (float)p.x / (float)clipRect.right;
                 nrcDest.bottom = (float)(p.y + srcRect.bottom) / (float)clipRect.bottom;
-                nrcDest.right = (float)(p.x + srcRect.right) / (float)clipRect.right;
+                nrcDest.right = (float)(p.x + srcRect.right) / (float)clipRect.right;  
 
-                MFVideoAlphaBitmap bmpInfo;
-                ZeroMemory(&bmpInfo, sizeof(bmpInfo));
-                bmpInfo.GetBitmapFromDC = FALSE;
-                bmpInfo.bitmap.pDDS = pSurface;
-                bmpInfo.params.dwFlags = MFVideoAlphaBitmap_Alpha | MFVideoAlphaBitmap_EntireDDS | MFVideoAlphaBitmap_DestRect;
-                bmpInfo.params.fAlpha = m_fBitmapAlpha;
-                bmpInfo.params.nrcDest = nrcDest;
-                //bmpInfo.params.dwFilterMode = D3DTEXF_POINT;
+                RECT dstRect = { 0,0,0,0 };
+                dstRect.top = p.y;
+                dstRect.left = p.x;
+                dstRect.right = p.x + srcRect.right;
+                dstRect.bottom = p.y + srcRect.bottom;              
 
-                // Set the bitmap.
-                if (SUCCEEDED(hr = m_pMixerBitmap->SetAlphaBitmap(&bmpInfo)))
-                  m_bSubtitleSet = true;
+                m_pD3DPresentEngine->SetSubtitle(pSurface, srcRect, nrcDest);
+                m_bSubtitleSet = true;
 
                 m_lastSubtitleId = id;
               }
             }
-
-            SAFE_RELEASE(pSurface);
+            //SAFE_RELEASE(pSurface);
           }
         }
       }
@@ -1293,7 +1290,9 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
   }
   else if (m_bSubtitleSet)
   {
-    hr = m_pMixerBitmap->ClearAlphaBitmap();
+    RECT blnkRect = { 0, 0, 0, 0 }; 
+    MFVideoNormalizedRect nrcDest = { 0, 0, 0, 0 };
+    m_pD3DPresentEngine->SetSubtitle(NULL, blnkRect, nrcDest);
     m_bSubtitleSet = false;
   }
 

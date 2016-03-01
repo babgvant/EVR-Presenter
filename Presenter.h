@@ -561,10 +561,10 @@ protected:
 //int							m_SampleHeight;
 //int							m_SampleArX;
 //int							m_SampleArY;
-  MFVideoAspectRatioMode		m_dwAspectRatioMode;
+  MFVideoAspectRatioMode		  m_dwAspectRatioMode;
   MFVideoRenderPrefs          m_dwVideoRenderPrefs;
   COLORREF                    m_BorderColor;
-  bool						m_bIsFullscreen;
+  bool						            m_bIsFullscreen;
 
   // Samples and scheduling
   Scheduler                   m_scheduler;            // Manages scheduling of samples.
@@ -588,30 +588,30 @@ protected:
   IMFTransform                *m_pMixer;               // The mixer.
   IMediaEventSink             *m_pMediaEventSink;      // The EVR's event-sink interface.
   IMFMediaType                *m_pMediaType;           // Output media type
-  IBaseFilter					*m_pEvr;
+  IBaseFilter					        *m_pEvr;
 
-  ISubRenderProvider *m_pProvider;
-  ISubRenderFrame    *m_SubtitleFrame;
-  EVRSubtitleConsumerContext context;
-  LONGLONG m_llFrame;
-  bool m_bEvrPinHooked;
+  ISubRenderProvider          *m_pProvider;
+  ISubRenderFrame             *m_SubtitleFrame;
+  EVRSubtitleConsumerContext  context;
+  LONGLONG                    m_llFrame;
+  bool                        m_bEvrPinHooked;
   //IPin* m_pPin;
  //   IMemInputPin* m_pMemInputPin;
-  REFERENCE_TIME  m_rtStart;
-  REFERENCE_TIME  m_rtStop;
+  REFERENCE_TIME              m_rtStart;
+  REFERENCE_TIME              m_rtStop;
 
-  CritSec				m_subCritSec;
-  HANDLE				m_hEvtDelivered;
-  IMFVideoMixerBitmap * m_pMixerBitmap;
-  ULONGLONG			m_lastSubtitleId;
-  bool				m_bSubtitleSet;
-  MFNominalRange		m_outputRange;
-  SIZE				m_VideoSize;
-  SIZE				m_VideoAR;
-  float				m_fBitmapAlpha;
+  CritSec				              m_subCritSec;
+  HANDLE				              m_hEvtDelivered;
+  //IMFVideoMixerBitmap * m_pMixerBitmap;
+  ULONGLONG			              m_lastSubtitleId;
+  bool				                m_bSubtitleSet;
+  MFNominalRange		          m_outputRange;
+  SIZE				                m_VideoSize;
+  SIZE				                m_VideoAR;
+  float				                m_fBitmapAlpha;
   //IPin *				m_pEvrPin;
-  REFERENCE_TIME		m_rtTimePerFrame;
-  bool				m_bCorrectAR;
+  REFERENCE_TIME		          m_rtTimePerFrame;
+  bool				                m_bCorrectAR;
 };
 
 

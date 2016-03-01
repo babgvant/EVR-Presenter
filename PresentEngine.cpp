@@ -54,6 +54,7 @@ D3DPresentEngine::D3DPresentEngine(HRESULT& hr) :
   , m_pDXVAVPS(NULL)
   , m_pDXVAVP(NULL)
   , m_bRequestOverlay(false)
+  , m_pSurfaceSubtitle(NULL)
 {
   SetRectEmpty(&m_rcDestRect);
 
@@ -94,13 +95,25 @@ D3DPresentEngine::D3DPresentEngine(HRESULT& hr) :
 
   m_BltParams.BackgroundColor = color;
   m_BltParams.DestFormat = format;
+  //m_BltParams.Alpha = DXVA2_Fixed32OpaqueAlpha();
 
   //// init m_Sample structure
-  m_Sample.Start = 0;
-  m_Sample.End = 1;
-  m_Sample.SampleFormat = format;
-  m_Sample.PlanarAlpha.Fraction = 0;
-  m_Sample.PlanarAlpha.Value = 1;
+  m_Sample[0].Start = 0;
+  m_Sample[0].End = 1;
+  m_Sample[0].SampleFormat = format;
+  m_Sample[0].PlanarAlpha.Fraction = 0;
+  m_Sample[0].PlanarAlpha.Value = 1;
+
+  //
+  // Initialize sub stream video sample.
+  //
+  m_Sample[1] = m_Sample[0];
+
+  // DXVA2_VideoProcess_SubStreamsExtended
+  m_Sample[1].SampleFormat = m_Sample[0].SampleFormat;
+
+  // DXVA2_VideoProcess_SubStreams
+  m_Sample[1].SampleFormat.SampleFormat = DXVA2_SampleSubStream;
 
   ZeroMemory(&m_DisplayMode, sizeof(m_DisplayMode));
   m_SampleWidth = -1;
@@ -371,9 +384,9 @@ HRESULT D3DPresentEngine::CreateVideoSamples(IMFMediaType *pFormat, VideoSampleL
   HRESULT     hr = S_OK;
   D3DCOLOR    clrBlack = D3DCOLOR_ARGB(0xFF, 0x00, 0x00, 0x00);
   IMFSample*  pVideoSample = NULL;
-  HANDLE      hDevice = 0;
+  //HANDLE      hDevice = 0;
   UINT        nWidth(0), nHeight(0);
-  IDirectXVideoProcessorService* pVideoProcessorService = NULL;
+  //IDirectXVideoProcessorService* pVideoProcessorService = NULL;
 
   AutoLock lock(m_ObjectLock);
 
@@ -385,13 +398,13 @@ HRESULT D3DPresentEngine::CreateVideoSamples(IMFMediaType *pFormat, VideoSampleL
   CHECK_HR(hr = MFGetAttributeSize(pFormat, MF_MT_FRAME_SIZE, &nWidth, &nHeight));
 
   // Get device handle
-  CHECK_HR(hr = m_pDeviceManager->OpenDeviceHandle(&hDevice));
+  //CHECK_HR(hr = m_pDeviceManager->OpenDeviceHandle(&hDevice));
 
   // Get IDirectXVideoProcessorService
-  CHECK_HR(hr = m_pDeviceManager->GetVideoService(hDevice, __uuidof(IDirectXVideoProcessorService), (void**)&pVideoProcessorService));
+  //CHECK_HR(hr = m_pDeviceManager->GetVideoService(hDevice, __uuidof(IDirectXVideoProcessorService), (void**)&pVideoProcessorService));
 
   // Create IDirect3DSurface9 surface
-  CHECK_HR(hr = pVideoProcessorService->CreateSurface(nWidth, nHeight, PRESENTER_BUFFER_COUNT - 1, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, 0, DXVA2_VideoProcessorRenderTarget, (IDirect3DSurface9 **)&m_pMixerSurfaces, NULL));
+  CHECK_HR(hr = m_pDXVAVPS->CreateSurface(nWidth, nHeight, PRESENTER_BUFFER_COUNT - 1, D3DFMT_X8R8G8B8, m_VPCaps.InputPool, 0, DXVA2_VideoProcessorRenderTarget, (IDirect3DSurface9 **)&m_pMixerSurfaces, NULL));
 
   // Create the video samples.
   for (int i = 0; i < PRESENTER_BUFFER_COUNT; i++)
@@ -411,8 +424,8 @@ HRESULT D3DPresentEngine::CreateVideoSamples(IMFMediaType *pFormat, VideoSampleL
   }
 
 done:
-  SAFE_RELEASE(pVideoProcessorService);
-  m_pDeviceManager->CloseDeviceHandle(hDevice);
+  //SAFE_RELEASE(pVideoProcessorService);
+  //m_pDeviceManager->CloseDeviceHandle(hDevice);
 
   if (FAILED(hr))
   {
@@ -507,7 +520,8 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
   //TRACE((L"PresentSurface\n"));
 
   HRESULT hr = S_OK;
-  RECT target;
+  RECT target, targetRect;
+  UINT sampleCount = 1;
 
   if (m_hwnd == NULL)
   {
@@ -529,23 +543,43 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
     AutoLock lock(m_ObjectLock);
 
     //GetClientRect(m_hwnd, &target);
-    target = m_rcDestRect;
+    target = targetRect = m_rcDestRect;    
   }
 
-  if (ClipToSurface(pSurface, m_Sample.SrcRect, &target))
+  if (ClipToSurface(pSurface, m_Sample[0].SrcRect, &target))
   {
     m_BltParams.TargetRect = target;
-    m_Sample.DstRect = target;
+    m_Sample[0].DstRect = target;
     //m_Sample.SrcRect = 
-    m_Sample.SrcSurface = pSurface;
+    m_Sample[0].SrcSurface = pSurface;
 
     hr = m_pDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &m_pRenderSurface);
     LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDevice->GetBackBuffer failed.", hr);
     // process the surface
 
     if (SUCCEEDED(hr) && m_pRenderSurface)
-    {
-      hr = m_pDXVAVP->VideoProcessBlt(m_pRenderSurface, &m_BltParams, &m_Sample, 1, NULL);
+    {      
+      AutoLock lock(m_SubtitleLock);
+      //process subtitle
+      if (m_pSurfaceSubtitle)
+      {
+        //D3DSURFACE_DESC sub_desc;
+        //ZeroMemory(&sub_desc, sizeof(sub_desc));
+        //hr = m_pSurfaceSubtitle->GetDesc(&sub_desc);
+        //LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface  m_pSurfaceSubtitle->GetDesc failed.", hr);
+        m_Sample[1].SrcSurface = m_pSurfaceSubtitle;        
+        //m_Sample[1].SrcRect.right = sub_desc.Width;
+        //m_Sample[1].SrcRect.bottom = sub_desc.Height;
+        m_Sample[1].SrcRect = m_rcSubSrcRect;
+
+        m_Sample[1].DstRect.top = abs(target.top - target.bottom) * m_nrcDest.top;
+        m_Sample[1].DstRect.left = abs(target.left- target.right) * m_nrcDest.left;
+        m_Sample[1].DstRect.right = abs(target.left - target.right) * m_nrcDest.right;
+        m_Sample[1].DstRect.bottom = abs(target.top - target.bottom) * m_nrcDest.bottom;
+        sampleCount = 2;
+      }
+
+      hr = m_pDXVAVP->VideoProcessBlt(m_pRenderSurface, &m_BltParams, m_Sample, sampleCount, NULL);
       LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDXVAVP->VideoProcessBlt failed.", hr);
     }
 
@@ -553,7 +587,7 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
 
     if (SUCCEEDED(hr))
     {
-      hr = m_pDevice->PresentEx(&target, &m_rcDestRect, m_hwnd, NULL, 0);
+      hr = m_pDevice->PresentEx(&target, &targetRect, m_hwnd, NULL, 0);
       LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDevice->PresentEx failed.", hr);
     }
 
@@ -692,8 +726,8 @@ HRESULT D3DPresentEngine::PresentSample(IMFSample* pSample, LONGLONG llTarget, L
     m_SampleWidth = d.Width;
     m_SampleHeight = d.Height;
 
-    m_Sample.SrcRect.right = d.Width;
-    m_Sample.SrcRect.bottom = d.Height;
+    m_Sample[0].SrcRect.right = d.Width;
+    m_Sample[0].SrcRect.bottom = d.Height;
 
     // Get the swap chain from the surface.
 //        CHECK_HR(hr = pSurface->GetContainer(__uuidof(IDirect3DSwapChain9), (LPVOID*)&pSwapChain));
@@ -857,6 +891,8 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
 
   pp.BackBufferWidth = m_DisplayMode.Width;// abs(m_rcDestRect.right - m_rcDestRect.left);//1;
   pp.BackBufferHeight = m_DisplayMode.Height;// abs(m_rcDestRect.bottom - m_rcDestRect.top);//1;
+  //pp.BackBufferWidth = abs(m_rcDestRect.right - m_rcDestRect.left);//1;
+  //pp.BackBufferHeight = abs(m_rcDestRect.bottom - m_rcDestRect.top);//1;
   pp.Windowed = TRUE;
   pp.SwapEffect = D3DSWAPEFFECT_COPY;
   pp.BackBufferFormat = D3DFMT_X8R8G8B8;// D3DFMT_UNKNOWN;
@@ -903,11 +939,14 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
   if (count > 0)
   {
     CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(guids[0], &m_VideoDesc, D3DFMT_X8R8G8B8, 1, &m_pDXVAVP));
+    CHECK_HR(hr = m_pDXVAVPS->GetVideoProcessorCaps(guids[0], &m_VideoDesc, D3DFMT_X8R8G8B8, &m_VPCaps));
   }
   else
   {
     CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(DXVA2_VideoProcProgressiveDevice, &m_VideoDesc, D3DFMT_X8R8G8B8, 1, &m_pDXVAVP));
+    CHECK_HR(hr = m_pDXVAVPS->GetVideoProcessorCaps(DXVA2_VideoProcProgressiveDevice, &m_VideoDesc, D3DFMT_X8R8G8B8, &m_VPCaps));
   }
+
   SAFE_RELEASE(m_pDevice);
   CoTaskMemFree(guids);
 
@@ -1045,6 +1084,23 @@ done:
   SAFE_RELEASE(pSurface);
 }
 
+//HRESULT D3DPresentEngine::CreateSurface(UINT Width, UINT Height, D3DFORMAT Format, IDirect3DSurface9** ppSurface)
+//{
+//  HRESULT hr = E_FAIL;
+//
+//  if (m_pDevice)
+//  {
+//    IDirect3DSurface9* pSurface = NULL;
+//
+//    if (SUCCEEDED(hr = m_pDevice->CreateOffscreenPlainSurface(Width, Height, Format, D3DPOOL_SYSTEMMEM, &pSurface, NULL)))
+//    {
+//      *ppSurface = pSurface;
+//    }
+//  }
+//
+//  return hr;
+//}
+
 HRESULT D3DPresentEngine::CreateSurface(UINT Width, UINT Height, D3DFORMAT Format, IDirect3DSurface9** ppSurface)
 {
   HRESULT hr = E_FAIL;
@@ -1053,7 +1109,7 @@ HRESULT D3DPresentEngine::CreateSurface(UINT Width, UINT Height, D3DFORMAT Forma
   {
     IDirect3DSurface9* pSurface = NULL;
 
-    if (SUCCEEDED(hr = m_pDevice->CreateOffscreenPlainSurface(Width, Height, Format, D3DPOOL_SYSTEMMEM, &pSurface, NULL)))
+    if (SUCCEEDED(hr = m_pDXVAVPS->CreateSurface(Width, Height, 0, Format, m_VPCaps.InputPool, 0, DXVA2_VideoProcessorRenderTarget, &pSurface, NULL)))
     {
       *ppSurface = pSurface;
     }

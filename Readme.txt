@@ -84,3 +84,6 @@ Scheduler:
 
 1.0.0.5
 - More aggressively scope locking introduced in 1.0.0.4
+
+1.0.0.6
+- Explicitly write subtitle surfaces
