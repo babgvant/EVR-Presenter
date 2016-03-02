@@ -143,6 +143,7 @@ D3DPresentEngine::~D3DPresentEngine()
   SAFE_RELEASE(m_pDevice);
   SAFE_RELEASE(m_pSurfaceRepaint);
   SAFE_RELEASE(m_pRenderSurface);
+  SAFE_RELEASE(m_pSurfaceSubtitle);
   SAFE_RELEASE(m_pDeviceManager);
   SAFE_RELEASE(m_pD3D9);
 
