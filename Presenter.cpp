@@ -1255,29 +1255,44 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
             if (SUCCEEDED(hr = m_pD3DPresentEngine->CreateSurface(sz.cx, sz.cy, D3DFMT_A8R8G8B8, &pSurface)))
             {
               RECT srcRect = { 0, 0, sz.cx, sz.cy };
-
-              if (SUCCEEDED(hr = D3DXLoadSurfaceFromMemory(pSurface, NULL, NULL, s, D3DFMT_A8R8G8B8, pitch, NULL, &srcRect, D3DX_DEFAULT, 0)))
+              D3DLOCKED_RECT lkRect;
+              
+              //if (SUCCEEDED(hr = D3DXLoadSurfaceFromMemory(pSurface, NULL, NULL, s, D3DFMT_A8R8G8B8, pitch, NULL, &srcRect, D3DX_DEFAULT, 0)))
+              if (SUCCEEDED(hr = pSurface->LockRect(&lkRect, NULL, D3DLOCK_DISCARD)))
               {
-                //wchar_t buff[FILENAME_MAX];
-                //wsprintf(buff, L"sub%d.png", id);
-                //hr = D3DXSaveSurfaceToFile(buff, D3DXIFF_PNG, pSurface, NULL, NULL);
+                // get destination pointer and copy pixels
+                BYTE* pDestPixels = (BYTE*)lkRect.pBits;
+                for (int y = 0; y < sz.cy; ++y)
+                {
+                  // copy a row
+                  memcpy(pDestPixels, s, sz.cx * 4);   // 4 bytes per pixel                                                                    
+                  s += pitch; // advance row pointers
+                  pDestPixels += lkRect.Pitch;
+                }
 
-                MFVideoNormalizedRect nrcDest;
-                nrcDest.top = (float)p.y / (float)clipRect.bottom;
-                nrcDest.left = (float)p.x / (float)clipRect.right;
-                nrcDest.bottom = (float)(p.y + srcRect.bottom) / (float)clipRect.bottom;
-                nrcDest.right = (float)(p.x + srcRect.right) / (float)clipRect.right;  
+                if (SUCCEEDED(hr = pSurface->UnlockRect()))
+                {
+                  //wchar_t buff[FILENAME_MAX];
+                  //wsprintf(buff, L"sub%d.png", id);
+                  //hr = D3DXSaveSurfaceToFile(buff, D3DXIFF_PNG, pSurface, NULL, NULL);
 
-                RECT dstRect = { 0,0,0,0 };
-                dstRect.top = p.y;
-                dstRect.left = p.x;
-                dstRect.right = p.x + srcRect.right;
-                dstRect.bottom = p.y + srcRect.bottom;              
+                  MFVideoNormalizedRect nrcDest;
+                  nrcDest.top = (float)p.y / (float)clipRect.bottom;
+                  nrcDest.left = (float)p.x / (float)clipRect.right;
+                  nrcDest.bottom = (float)(p.y + srcRect.bottom) / (float)clipRect.bottom;
+                  nrcDest.right = (float)(p.x + srcRect.right) / (float)clipRect.right;
 
-                m_pD3DPresentEngine->SetSubtitle(pSurface, srcRect, nrcDest);
-                m_bSubtitleSet = true;
+                  RECT dstRect = { 0,0,0,0 };
+                  dstRect.top = p.y;
+                  dstRect.left = p.x;
+                  dstRect.right = p.x + srcRect.right;
+                  dstRect.bottom = p.y + srcRect.bottom;
 
-                m_lastSubtitleId = id;
+                  m_pD3DPresentEngine->SetSubtitle(pSurface, srcRect, nrcDest);
+                  m_bSubtitleSet = true;
+
+                  m_lastSubtitleId = id;
+                }
               }
             }
             //SAFE_RELEASE(pSurface);
