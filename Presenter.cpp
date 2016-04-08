@@ -1397,6 +1397,14 @@ STDMETHODIMP EVRCustomPresenter::ProcessSubtitles(DWORD waitfor)
 
 STDMETHODIMP EVRCustomPresenter::Clear(REFERENCE_TIME clearNewerThan)
 {
+  if (m_pD3DPresentEngine) 
+  {
+    RECT blnkRect = { 0, 0, 0, 0 };
+    MFVideoNormalizedRect nrcDest = { 0, 0, 0, 0 };
+    m_pD3DPresentEngine->SetSubtitle(NULL, blnkRect, nrcDest);
+    m_bSubtitleSet = false;
+  }
+
   return S_OK;
 }
 
