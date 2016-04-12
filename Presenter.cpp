@@ -1121,6 +1121,8 @@ EVRCustomPresenter::EVRCustomPresenter(HRESULT& hr) :
   , m_rtTimePerFrame(0)
   , m_pEvr(NULL)
   , m_bCorrectAR(true)
+  , m_iPositionOffset(10)
+  , m_bPositionFromBottom(true)
 {
   hr = S_OK;
 
@@ -1316,6 +1318,17 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
                     dstRect.bottom = (p.y + srcRect.bottom) * hRatio;
                     dstRect.left = p.x * wRatio;
                     dstRect.right = (p.x + srcRect.right) * wRatio;
+
+                    if (m_bPositionFromBottom)
+                    {
+                      int subHeight = abs(dstRect.bottom - dstRect.top);
+                      int subBottom = outpRect.bottom - m_iPositionOffset;
+                      int subTop = subBottom - subHeight;
+
+                      TRACE((L"Change position to %d from bottom Dst t: %d b: %d Adjusted t: %d b: %d\n", m_iPositionOffset, dstRect.top, dstRect.bottom, subTop, subBottom));
+                      dstRect.top = subTop;
+                      dstRect.bottom = subBottom;
+                    }
 
                     TRACE((L"SetSubtitle: Src b: %d t: %d l: %d r: %d Dst  b: %d t: %d l: %d r: %d NormRect b: %f t: %f l: %f r: %f\n", srcRect.bottom, srcRect.top, srcRect.left, srcRect.right, dstRect.bottom, dstRect.top, dstRect.left, dstRect.right, nrcDest.bottom, nrcDest.top, nrcDest.left, nrcDest.right));
 
