@@ -1129,7 +1129,7 @@ EVRCustomPresenter::EVRCustomPresenter(HRESULT& hr) :
   ZeroMemory(&context, sizeof(context));
 
   context.name = TEXT("EVR Presenter (babgvant)");
-  context.version = TEXT("1.0.0.1");
+  context.version = TEXT("1.0.0.9");
   context.supportedLevels = 1;
 
   m_hEvtDelivered = CreateEvent(nullptr, false, false, nullptr);
@@ -1211,7 +1211,7 @@ STDMETHODIMP EVRCustomPresenter::Disconnect(void)
   return S_OK;
 }
 
-STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TIME stop, LPVOID context, ISubRenderFrame *subtitleFrame)
+STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TIME stop, LPVOID subcontext, ISubRenderFrame *subtitleFrame)
 {
   HRESULT hr = S_OK;
   //const float fBitmapAlpha = 1.0f;
@@ -1233,81 +1233,115 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
   {
     //cheating a little because the subtitles will probably be off by 1 frame, but that's a small sacrifice for convenience
     POINT p;
-    ULONGLONG id;
+    ULONGLONG id = 0;
     SIZE sz;
     BYTE* s;
-    int pitch;
+    int pitch = 0;
     RECT clipRect;
+    RECT outpRect;
+    int bmpCount = 0;
+    bool isBitmap = false;
 
-    if (SUCCEEDED(hr = subtitleFrame->GetBitmap(0, &id, nullptr, nullptr, nullptr, nullptr)))
+    //hr = m_pProvider->GetBool("isBitmap", &isBitmap);
+
+    //if (SUCCEEDED(hr = subtitleFrame->GetClipRect(&clipRect)))
+    //{
+    //}
+
+    //if (SUCCEEDED(hr = subtitleFrame->GetOutputRect(&outpRect)))
+    //{
+    //}
+
+    if (SUCCEEDED(hr = subtitleFrame->GetBitmapCount(&bmpCount)) && bmpCount > 0)
     {
-      if (id != m_lastSubtitleId)
+      if (SUCCEEDED(hr = subtitleFrame->GetBitmap(0, &id, nullptr, nullptr, nullptr, nullptr)))
       {
-        TRACE((L"Update subtitle=%I64d\n", id));
-
-        //we only need to change the subtitle if it's changed
-        if (SUCCEEDED(hr = subtitleFrame->GetBitmap(0, &id, &p, &sz, (LPCVOID*)(&s), &pitch)))
+        if (id != m_lastSubtitleId)
         {
-          if (SUCCEEDED(hr = subtitleFrame->GetClipRect(&clipRect)))
+          TRACE((L"Update subtitle=%I64d\n", id));
+
+          //we only need to change the subtitle if it's changed
+          if (SUCCEEDED(hr = subtitleFrame->GetBitmap(0, &id, &p, &sz, (LPCVOID*)(&s), &pitch)))
           {
-            IDirect3DSurface9   * pSurface;
+            TRACE((L"Subtitle Point(x: %d y: %d) Size( w: %d h: %d)\n", p.x, p.y, sz.cx, sz.cy));
 
-            if (SUCCEEDED(hr = m_pD3DPresentEngine->CreateSurface(sz.cx, sz.cy, D3DFMT_A8R8G8B8, &pSurface)))
+            if (SUCCEEDED(hr = subtitleFrame->GetClipRect(&clipRect)))
             {
-              RECT srcRect = { 0, 0, sz.cx, sz.cy };
-              D3DLOCKED_RECT lkRect;
-              
-              //if (SUCCEEDED(hr = D3DXLoadSurfaceFromMemory(pSurface, NULL, NULL, s, D3DFMT_A8R8G8B8, pitch, NULL, &srcRect, D3DX_DEFAULT, 0)))
-              if (SUCCEEDED(hr = pSurface->LockRect(&lkRect, NULL, D3DLOCK_DISCARD)))
+              IDirect3DSurface9   * pSurface;
+
+              if (SUCCEEDED(hr = m_pD3DPresentEngine->CreateSurface(sz.cx, sz.cy, D3DFMT_A8R8G8B8, &pSurface)))
               {
-                // get destination pointer and copy pixels
-                BYTE* pDestPixels = (BYTE*)lkRect.pBits;
-                for (int y = 0; y < sz.cy; ++y)
+                RECT srcRect = { 0, 0, sz.cx, sz.cy };
+                D3DLOCKED_RECT lkRect;
+
+                //if (SUCCEEDED(hr = D3DXLoadSurfaceFromMemory(pSurface, NULL, NULL, s, D3DFMT_A8R8G8B8, pitch, NULL, &srcRect, D3DX_DEFAULT, 0)))
+                if (SUCCEEDED(hr = pSurface->LockRect(&lkRect, NULL, D3DLOCK_DISCARD)))
                 {
-                  // copy a row
-                  memcpy(pDestPixels, s, sz.cx * 4);   // 4 bytes per pixel                                                                    
-                  s += pitch; // advance row pointers
-                  pDestPixels += lkRect.Pitch;
-                }
+                  // get destination pointer and copy pixels
+                  BYTE* pDestPixels = (BYTE*)lkRect.pBits;
+                  for (int y = 0; y < sz.cy; ++y)
+                  {
+                    // copy a row
+                    memcpy(pDestPixels, s, sz.cx * 4);   // 4 bytes per pixel                                                                    
+                    s += pitch; // advance row pointers
+                    pDestPixels += lkRect.Pitch;
+                  }
 
-                if (SUCCEEDED(hr = pSurface->UnlockRect()))
-                {
-                  //wchar_t buff[FILENAME_MAX];
-                  //wsprintf(buff, L"sub%d.png", id);
-                  //hr = D3DXSaveSurfaceToFile(buff, D3DXIFF_PNG, pSurface, NULL, NULL);
+                  if (SUCCEEDED(hr = pSurface->UnlockRect()))
+                  {
+#ifdef DUMPSUBS
 
-                  MFVideoNormalizedRect nrcDest;
-                  nrcDest.top = (float)p.y / (float)clipRect.bottom;
-                  nrcDest.left = (float)p.x / (float)clipRect.right;
-                  nrcDest.bottom = (float)(p.y + srcRect.bottom) / (float)clipRect.bottom;
-                  nrcDest.right = (float)(p.x + srcRect.right) / (float)clipRect.right;
+                    wchar_t buff[FILENAME_MAX];
+                    wsprintf(buff, L"sub%d.png", id);
+                    hr = D3DXSaveSurfaceToFile(buff, D3DXIFF_PNG, pSurface, NULL, NULL);
 
-                  RECT dstRect = { 0,0,0,0 };
-                  dstRect.top = p.y;
-                  dstRect.left = p.x;
-                  dstRect.right = p.x + srcRect.right;
-                  dstRect.bottom = p.y + srcRect.bottom;
+#endif // DUMPSUBS
+                    outpRect = m_pD3DPresentEngine->GetDestinationRect();
+                    float hRatio = (float)abs(outpRect.top - outpRect.bottom) / (float)clipRect.bottom;
+                    float wRatio = (float)abs(outpRect.left - outpRect.right) / (float)clipRect.right;
+                    TRACE((L"Calc position: Org b: %d t: %d l: %d r: %d Output  b: %d t: %d l: %d r: %d Ratio h: %f w: %f\n", clipRect.bottom, clipRect.top, clipRect.left, clipRect.right, outpRect.bottom, outpRect.top, outpRect.left, outpRect.right, hRatio, wRatio));
 
-                  m_pD3DPresentEngine->SetSubtitle(pSurface, srcRect, nrcDest);
-                  m_bSubtitleSet = true;
+                    MFVideoNormalizedRect nrcDest;
+                    nrcDest.top = (float)p.y / hRatio;
+                    nrcDest.bottom = (float)(p.y + srcRect.bottom) / hRatio;
+                    nrcDest.left = (float)p.x / wRatio;
+                    nrcDest.right = (float)(p.x + srcRect.right) / wRatio;
 
-                  m_lastSubtitleId = id;
+                    //nrcDest.top = (float)p.y / (float)clipRect.bottom;
+                    //nrcDest.left = (float)p.x / (float)clipRect.right;
+                    //nrcDest.bottom = (float)(p.y + srcRect.bottom) / (float)clipRect.bottom;
+                    //nrcDest.right = (float)(p.x + srcRect.right) / (float)clipRect.right;
+                    RECT dstRect = { 0,0,0,0 };
+                    dstRect.top = p.y * hRatio;
+                    dstRect.bottom = (p.y + srcRect.bottom) * hRatio;
+                    dstRect.left = p.x * wRatio;
+                    dstRect.right = (p.x + srcRect.right) * wRatio;
+
+                    TRACE((L"SetSubtitle: Src b: %d t: %d l: %d r: %d Dst  b: %d t: %d l: %d r: %d NormRect b: %f t: %f l: %f r: %f\n", srcRect.bottom, srcRect.top, srcRect.left, srcRect.right, dstRect.bottom, dstRect.top, dstRect.left, dstRect.right, nrcDest.bottom, nrcDest.top, nrcDest.left, nrcDest.right));
+
+                    m_pD3DPresentEngine->SetSubtitle(pSurface, srcRect, dstRect, nrcDest);
+                    m_bSubtitleSet = true;
+
+                    m_lastSubtitleId = id;
+                  }
                 }
               }
+              //SAFE_RELEASE(pSurface);
             }
-            //SAFE_RELEASE(pSurface);
           }
         }
       }
+      else
+        TRACE((L"Failed to get subtitle"));
     }
     else
-      TRACE((L"Failed to get subtitle"));
+      TRACE((L"Subtitle was not generated by XySubFilter!"));
   }
   else if (m_bSubtitleSet)
   {
     RECT blnkRect = { 0, 0, 0, 0 }; 
     MFVideoNormalizedRect nrcDest = { 0, 0, 0, 0 };
-    m_pD3DPresentEngine->SetSubtitle(NULL, blnkRect, nrcDest);
+    m_pD3DPresentEngine->SetSubtitle(NULL, blnkRect, blnkRect, nrcDest);
     m_bSubtitleSet = false;
   }
 
@@ -1401,7 +1435,7 @@ STDMETHODIMP EVRCustomPresenter::Clear(REFERENCE_TIME clearNewerThan)
   {
     RECT blnkRect = { 0, 0, 0, 0 };
     MFVideoNormalizedRect nrcDest = { 0, 0, 0, 0 };
-    m_pD3DPresentEngine->SetSubtitle(NULL, blnkRect, nrcDest);
+    m_pD3DPresentEngine->SetSubtitle(NULL, blnkRect, blnkRect, nrcDest);
     m_bSubtitleSet = false;
   }
 
@@ -2304,15 +2338,26 @@ HRESULT EVRCustomPresenter::CreateOptimalVideoType(IMFMediaType* pProposedType, 
   //	CHECK_HR(hr = mtOptimal.SetPixelAspectRatio(1, 1));
   //}
 
+  //Don't have XySubFilter scale the subtitles
   context.originalVideoSize.cx = iWidth;
   context.originalVideoSize.cy = iHeight;
-  context.arAdjustedVideoSize.cx = rcVideoRect.right;//rcOutput.bottom;
-  context.arAdjustedVideoSize.cy = rcVideoRect.bottom;//rcOutput.right;
 
-  context.videoOutputRect.top = rcOutput.top;
-  context.videoOutputRect.left = rcOutput.left;
-  context.videoOutputRect.bottom = rcOutput.bottom;
-  context.videoOutputRect.right = rcOutput.right;
+  context.arAdjustedVideoSize.cx = iWidth;
+  context.arAdjustedVideoSize.cy = iHeight;
+
+  context.videoOutputRect.top = 0;
+  context.videoOutputRect.left = 0;
+  context.videoOutputRect.bottom = iHeight;
+  context.videoOutputRect.right = iWidth;
+
+  //Let XySubFilter scale the subtitles
+  //context.arAdjustedVideoSize.cx = rcVideoRect.right;//rcOutput.bottom;
+  //context.arAdjustedVideoSize.cy = rcVideoRect.bottom;//rcOutput.right;
+
+  //context.videoOutputRect.top = rcOutput.top;
+  //context.videoOutputRect.left = rcOutput.left;
+  //context.videoOutputRect.bottom = rcOutput.bottom;
+  //context.videoOutputRect.right = rcOutput.right;
 
   context.subtitleTargetRect = context.videoOutputRect;
 

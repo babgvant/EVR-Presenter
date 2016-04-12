@@ -572,11 +572,12 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
         //m_Sample[1].SrcRect.right = sub_desc.Width;
         //m_Sample[1].SrcRect.bottom = sub_desc.Height;
         m_Sample[1].SrcRect = m_rcSubSrcRect;
+        m_Sample[1].DstRect = m_rcSubDstRect;
 
-        m_Sample[1].DstRect.top = abs(target.top - target.bottom) * m_nrcDest.top;
-        m_Sample[1].DstRect.left = abs(target.left- target.right) * m_nrcDest.left;
-        m_Sample[1].DstRect.right = abs(target.left - target.right) * m_nrcDest.right;
-        m_Sample[1].DstRect.bottom = abs(target.top - target.bottom) * m_nrcDest.bottom;
+        //m_Sample[1].DstRect.top = abs(target.top - target.bottom) * m_nrcDest.top;
+        //m_Sample[1].DstRect.left = abs(target.left- target.right) * m_nrcDest.left;
+        //m_Sample[1].DstRect.right = abs(target.left - target.right) * m_nrcDest.right;
+        //m_Sample[1].DstRect.bottom = abs(target.top - target.bottom) * m_nrcDest.bottom;
         sampleCount = 2;
       }
 

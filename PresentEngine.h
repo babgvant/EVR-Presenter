@@ -131,7 +131,7 @@ public:
     return hr;
   }
 
-  void SetSubtitle(IDirect3DSurface9 *pSurfaceSubtitle, const RECT& src, const MFVideoNormalizedRect& nrcDest) {
+  void SetSubtitle(IDirect3DSurface9 *pSurfaceSubtitle, const RECT& src, const RECT& dst, const MFVideoNormalizedRect& nrcDest) {
     AutoLock lock(m_SubtitleLock);
 
     SAFE_RELEASE(m_pSurfaceSubtitle);
@@ -139,6 +139,7 @@ public:
     {
       m_pSurfaceSubtitle = pSurfaceSubtitle;
       m_rcSubSrcRect = src;
+      m_rcSubDstRect = dst;
       m_nrcDest = nrcDest;
     }
   }
@@ -170,7 +171,8 @@ protected:
   HWND                        m_hwnd;                 // Application-provided destination window.
   RECT                        m_rcDestRect;           // Destination rectangle.
   D3DDISPLAYMODE              m_DisplayMode;          // Adapter's display mode.
-  RECT                        m_rcSubSrcRect;            
+  RECT                        m_rcSubSrcRect;
+  RECT                        m_rcSubDstRect;
   MFVideoNormalizedRect       m_nrcDest;
 
   CritSec                     m_ObjectLock;           // Thread lock for the D3D device.

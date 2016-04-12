@@ -113,6 +113,15 @@ typedef struct EVRSubtitleConsumerContext {
   LPWSTR yuvMatrix;
 } EVRSubtitleConsumerContext;
 
+namespace
+{
+#if (defined(WIN32) || defined(_WIN32) || defined(__WIN32__))
+  const std::string path_to_log_file = "./";
+#else
+  const std::string path_to_log_file = "/tmp/";
+#endif
+}
+
 //-----------------------------------------------------------------------------
 //  EVRCustomPresenter class
 //  Description: Implements the custom presenter.
