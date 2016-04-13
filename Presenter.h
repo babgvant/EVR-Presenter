@@ -113,6 +113,9 @@ typedef struct EVRSubtitleConsumerContext {
   LPWSTR yuvMatrix;
 } EVRSubtitleConsumerContext;
 
+EXTERN_C IMAGE_DOS_HEADER __ImageBase;
+#define HINST_THISCOMPONENT ((HINSTANCE)&__ImageBase)
+
 //namespace
 //{
 //#if (defined(WIN32) || defined(_WIN32) || defined(__WIN32__))

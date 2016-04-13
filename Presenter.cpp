@@ -82,6 +82,46 @@ static const SubRenderOption options[] = {
   { 0 }
 };
 
+bool GetVersionInfo(
+  LPCTSTR filename,
+  int &major,
+  int &minor,
+  int &build,
+  int &revision)
+{
+  DWORD   verBufferSize;
+  char    verBuffer[2048];
+
+  //  Get the size of the version info block in the file
+  verBufferSize = GetFileVersionInfoSize(filename, NULL);
+  if (verBufferSize > 0 && verBufferSize <= sizeof(verBuffer))
+  {
+    //  get the version block from the file
+    if (TRUE == GetFileVersionInfo(filename, NULL, verBufferSize, verBuffer))
+    {
+      UINT length;
+      VS_FIXEDFILEINFO *verInfo = NULL;
+
+      //  Query the version information for neutral language
+      if (TRUE == VerQueryValue(
+        verBuffer,
+        (L"\\"),
+        reinterpret_cast<LPVOID*>(&verInfo),
+        &length))
+      {
+        //  Pull the version values.
+        major = HIWORD(verInfo->dwProductVersionMS);
+        minor = LOWORD(verInfo->dwProductVersionMS);
+        build = HIWORD(verInfo->dwProductVersionLS);
+        revision = LOWORD(verInfo->dwProductVersionLS);
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 //-----------------------------------------------------------------------------
 // CreateInstance
 //
@@ -1130,9 +1170,31 @@ EVRCustomPresenter::EVRCustomPresenter(HRESULT& hr) :
   ZeroMemory(&m_VideoAR, sizeof(m_VideoAR));
   ZeroMemory(&context, sizeof(context));
 
+  TCHAR szFilename[MAX_PATH + 1] = { 0 };
+  int major;
+  int minor;
+  int build;
+  int revision;
+
+ 
+  //if(!context.version)
+  //{
+  //  ;
+  //}
+
   context.name = TEXT("EVR Presenter (babgvant)");
-  context.version = TEXT("1.0.0.9");
   context.supportedLevels = 1;
+  context.version = TEXT("1.0.0.0");
+
+  if (SUCCEEDED(hr = GetModuleFileName(reinterpret_cast<HINSTANCE>(&__ImageBase), szFilename, MAX_PATH)))
+  {
+    if (GetVersionInfo(szFilename, major, minor, build, revision))
+    {
+      TCHAR version[MAX_PATH + 1] = { 0 };
+      wsprintf(version, L"%d.%d.%d.%d", major, minor, build, revision);
+      context.version = version;
+    }
+  }
 
   m_hEvtDelivered = CreateEvent(nullptr, false, false, nullptr);
 
