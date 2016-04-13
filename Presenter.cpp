@@ -1175,16 +1175,9 @@ EVRCustomPresenter::EVRCustomPresenter(HRESULT& hr) :
   int minor;
   int build;
   int revision;
-
  
-  //if(!context.version)
-  //{
-  //  ;
-  //}
-
   context.name = TEXT("EVR Presenter (babgvant)");
-  context.supportedLevels = 1;
-  context.version = TEXT("1.0.0.0");
+  context.supportedLevels = 1;  
 
   if (SUCCEEDED(hr = GetModuleFileName(reinterpret_cast<HINSTANCE>(&__ImageBase), szFilename, MAX_PATH)))
   {
@@ -1194,6 +1187,11 @@ EVRCustomPresenter::EVRCustomPresenter(HRESULT& hr) :
       wsprintf(version, L"%d.%d.%d.%d", major, minor, build, revision);
       context.version = version;
     }
+  }
+
+  if(!context.version)
+  {
+    context.version = TEXT("1.0.0.0");
   }
 
   m_hEvtDelivered = CreateEvent(nullptr, false, false, nullptr);
