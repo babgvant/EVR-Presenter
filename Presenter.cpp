@@ -358,7 +358,7 @@ HRESULT EVRCustomPresenter::GetDeviceID(IID* pDeviceID)
 
 HRESULT EVRCustomPresenter::InitServicePointers(IMFTopologyServiceLookup *pLookup)
 {
-  TRACE((L"InitServicePointers\n"));
+  TRACE((L"InitServicePointers"));
   CheckPointer(pLookup, E_POINTER);
 
   HRESULT             hr = S_OK;
@@ -434,7 +434,7 @@ HRESULT EVRCustomPresenter::InitServicePointers(IMFTopologyServiceLookup *pLooku
   if (SUCCEEDED(hr = pLookup->QueryInterface(__uuidof(IBaseFilter), (void**)&m_pEvr)))
   {
     if (!SUCCEEDED(hr = HookEVR(m_pEvr)))
-      TRACE((L"Failed to hook EVR input pin\n"));
+      TRACE((L"Failed to hook EVR input pin"));
   }
 
   //SAFE_RELEASE(pEVR);
@@ -455,7 +455,7 @@ done:
 
 HRESULT EVRCustomPresenter::ReleaseServicePointers()
 {
-  TRACE((L"ReleaseServicePointers\n"));
+  TRACE((L"ReleaseServicePointers"));
 
   HRESULT hr = S_OK;
 
@@ -620,7 +620,7 @@ done:
 
 HRESULT EVRCustomPresenter::OnClockStart(MFTIME hnsSystemTime, LONGLONG llClockStartOffset)
 {
-  TRACE((L"OnClockStart (offset = %I64d)\n", llClockStartOffset));
+  TRACE((L"OnClockStart (offset = %I64d)", llClockStartOffset));
 
 
   HRESULT hr = S_OK;
@@ -667,7 +667,7 @@ done:
 
 HRESULT EVRCustomPresenter::OnClockRestart(MFTIME hnsSystemTime)
 {
-  TRACE((L"OnClockRestart\n"));
+  TRACE((L"OnClockRestart"));
 
   AutoLock lock(m_ObjectLock);
 
@@ -699,7 +699,7 @@ done:
 
 HRESULT EVRCustomPresenter::OnClockStop(MFTIME hnsSystemTime)
 {
-  TRACE((L"OnClockStop\n"));
+  TRACE((L"OnClockStop"));
 
   AutoLock lock(m_ObjectLock);
 
@@ -730,7 +730,7 @@ done:
 
 HRESULT EVRCustomPresenter::OnClockPause(MFTIME hnsSystemTime)
 {
-  TRACE((L"OnClockPause\n"));
+  TRACE((L"OnClockPause"));
 
   HRESULT hr = S_OK;
 
@@ -755,7 +755,7 @@ done:
 
 HRESULT EVRCustomPresenter::OnClockSetRate(MFTIME hnsSystemTime, float fRate)
 {
-  TRACE((L"OnClockSetRate (rate=%f\n)", fRate));
+  TRACE((L"OnClockSetRate (rate=%f)", fRate));
 
   // Note: 
   // The presenter reports its maximum rate through the IMFRateSupport interface.
@@ -1183,9 +1183,11 @@ EVRCustomPresenter::EVRCustomPresenter(HRESULT& hr) :
   {
     if (GetVersionInfo(szFilename, major, minor, build, revision))
     {
-      TCHAR version[MAX_PATH + 1] = { 0 };
+      WCHAR version[MAX_PATH + 1] = { 0 };
       wsprintf(version, L"%d.%d.%d.%d", major, minor, build, revision);
-      context.version = version;
+      int chars = (int)wcslen(version);
+      context.version = (LPWSTR)LocalAlloc(0, sizeof(WCHAR) * (chars + 1));
+      wcscpy_s(context.version, chars + 1, version);
     }
   }
 
@@ -1320,12 +1322,12 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
       {
         if (id != m_lastSubtitleId)
         {
-          TRACE((L"Update subtitle=%I64d\n", id));
+          TRACE((L"Update subtitle=%I64d", id));
 
           //we only need to change the subtitle if it's changed
           if (SUCCEEDED(hr = subtitleFrame->GetBitmap(0, &id, &p, &sz, (LPCVOID*)(&s), &pitch)))
           {
-            TRACE((L"Subtitle Point(x: %d y: %d) Size( w: %d h: %d)\n", p.x, p.y, sz.cx, sz.cy));
+            TRACE((L"Subtitle Point(x: %d y: %d) Size( w: %d h: %d)", p.x, p.y, sz.cx, sz.cy));
 
             if (SUCCEEDED(hr = subtitleFrame->GetClipRect(&clipRect)))
             {
@@ -1359,9 +1361,9 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
 
 #endif // DUMPSUBS
                     outpRect = m_pD3DPresentEngine->GetDestinationRect();
-                    float hRatio = (float)abs(outpRect.top - outpRect.bottom) / (float)clipRect.bottom;
-                    float wRatio = (float)abs(outpRect.left - outpRect.right) / (float)clipRect.right;
-                    TRACE((L"Calc position: Org b: %d t: %d l: %d r: %d Output  b: %d t: %d l: %d r: %d Ratio h: %f w: %f\n", clipRect.bottom, clipRect.top, clipRect.left, clipRect.right, outpRect.bottom, outpRect.top, outpRect.left, outpRect.right, hRatio, wRatio));
+                    float hRatio = (float)abs(outpRect.top - outpRect.bottom) / (float)abs(clipRect.top - clipRect.bottom);
+                    float wRatio = (float)abs(outpRect.left - outpRect.right) / (float)abs(clipRect.left - clipRect.right);
+                    TRACE((L"Calc position: Org t: %d b: %d l: %d r: %d Output  t: %d b: %d l: %d r: %d Ratio h: %f w: %f", clipRect.top, clipRect.bottom, clipRect.left, clipRect.right, outpRect.top, outpRect.bottom, outpRect.left, outpRect.right, hRatio, wRatio));
 
                     MFVideoNormalizedRect nrcDest;
                     nrcDest.top = (float)p.y / hRatio;
@@ -1378,6 +1380,8 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
                     dstRect.bottom = (p.y + srcRect.bottom) * hRatio;
                     dstRect.left = p.x * wRatio;
                     dstRect.right = (p.x + srcRect.right) * wRatio;
+                    TRACE((L"srcRect t: %d b: %d l: %d r: %d", srcRect.top, srcRect.bottom, srcRect.left, srcRect.right));
+                    TRACE((L"dstRect: Src t: %d b: %d l: %d r: %d", dstRect.top, dstRect.bottom, dstRect.left, dstRect.right));
 
                     if (m_bPositionFromBottom)
                     {
@@ -1385,12 +1389,12 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
                       int subBottom = outpRect.bottom - m_iPositionOffset;
                       int subTop = subBottom - subHeight;
 
-                      TRACE((L"Change position to %d from bottom Dst t: %d b: %d Adjusted t: %d b: %d\n", m_iPositionOffset, dstRect.top, dstRect.bottom, subTop, subBottom));
+                      TRACE((L"Change position to %d from bottom Dst t: %d b: %d Adjusted t: %d b: %d", m_iPositionOffset, dstRect.top, dstRect.bottom, subTop, subBottom));
                       dstRect.top = subTop;
                       dstRect.bottom = subBottom;
                     }
 
-                    TRACE((L"SetSubtitle: Src b: %d t: %d l: %d r: %d Dst  b: %d t: %d l: %d r: %d NormRect b: %f t: %f l: %f r: %f\n", srcRect.bottom, srcRect.top, srcRect.left, srcRect.right, dstRect.bottom, dstRect.top, dstRect.left, dstRect.right, nrcDest.bottom, nrcDest.top, nrcDest.left, nrcDest.right));
+                    TRACE((L"SetSubtitle: Src t: %d b: %d l: %d r: %d Dst  t: %d b: %d l: %d r: %d NormRect b: %f t: %f l: %f r: %f", srcRect.top, srcRect.bottom, srcRect.left, srcRect.right, dstRect.top, dstRect.bottom, dstRect.left, dstRect.right, nrcDest.bottom, nrcDest.top, nrcDest.left, nrcDest.right));
 
                     m_pD3DPresentEngine->SetSubtitle(pSurface, srcRect, dstRect, nrcDest);
                     m_bSubtitleSet = true;
@@ -1778,7 +1782,7 @@ HRESULT GetMediaTypeMerit(IMFMediaType* pType, int* pMerit)
 
 HRESULT EVRCustomPresenter::RenegotiateMediaType()
 {
-  TRACE((L"RenegotiateMediaType\n"));
+  TRACE((L"RenegotiateMediaType"));
 
   HRESULT hr = S_OK;
   BOOL bFoundMediaType = FALSE;
@@ -2411,27 +2415,6 @@ HRESULT EVRCustomPresenter::CreateOptimalVideoType(IMFMediaType* pProposedType, 
   //	CHECK_HR(hr = mtOptimal.SetPixelAspectRatio(1, 1));
   //}
 
-  //Don't have XySubFilter scale the subtitles
-  context.originalVideoSize.cx = iWidth;
-  context.originalVideoSize.cy = iHeight;
-
-  context.arAdjustedVideoSize.cx = iWidth;
-  context.arAdjustedVideoSize.cy = iHeight;
-
-  context.videoOutputRect.top = 0;
-  context.videoOutputRect.left = 0;
-  context.videoOutputRect.bottom = iHeight;
-  context.videoOutputRect.right = iWidth;
-
-  //Let XySubFilter scale the subtitles
-  //context.arAdjustedVideoSize.cx = rcVideoRect.right;//rcOutput.bottom;
-  //context.arAdjustedVideoSize.cy = rcVideoRect.bottom;//rcOutput.right;
-
-  //context.videoOutputRect.top = rcOutput.top;
-  //context.videoOutputRect.left = rcOutput.left;
-  //context.videoOutputRect.bottom = rcOutput.bottom;
-  //context.videoOutputRect.right = rcOutput.right;
-
   context.subtitleTargetRect = context.videoOutputRect;
 
   CHECK_HR(hr = mtOptimal.SetPanScanEnabled(FALSE));
@@ -2457,6 +2440,28 @@ HRESULT EVRCustomPresenter::CreateOptimalVideoType(IMFMediaType* pProposedType, 
     m_VideoSize.cx = displayArea.Area.cx;
     m_VideoAR.cy = sampleArY;
     m_VideoAR.cx = sampleArX;
+
+    //Don't have XySubFilter scale the subtitles
+    context.originalVideoSize.cx = iWidth;
+    context.originalVideoSize.cy = iHeight;
+
+    SIZE native;
+    ZeroMemory(&native, sizeof(native));
+    GetNativeVideoSize(&native, &context.arAdjustedVideoSize);
+
+    context.videoOutputRect.top = 0;
+    context.videoOutputRect.left = 0;
+    context.videoOutputRect.bottom = context.originalVideoSize.cy;
+    context.videoOutputRect.right = context.originalVideoSize.cx;
+
+    //Let XySubFilter scale the subtitles
+    //context.arAdjustedVideoSize.cx = rcVideoRect.right;//rcOutput.bottom;
+    //context.arAdjustedVideoSize.cy = rcVideoRect.bottom;//rcOutput.right;
+
+    //context.videoOutputRect.top = rcOutput.top;
+    //context.videoOutputRect.left = rcOutput.left;
+    //context.videoOutputRect.bottom = rcOutput.bottom;
+    //context.videoOutputRect.right = rcOutput.right;
 
     NotifyEvent(EC_VIDEO_SIZE_CHANGED, MAKELPARAM(displayArea.Area.cx, displayArea.Area.cy), 0);
   }

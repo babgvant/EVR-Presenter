@@ -245,7 +245,7 @@ HRESULT D3DPresentEngine::SetVideoWindow(HWND hwnd)
 
   AutoLock lock(m_ObjectLock);
 
-  TRACE((L"SetVideoWindow: %d\n", hwnd));
+  TRACE((L"SetVideoWindow: %d", hwnd));
 
   m_hwnd = hwnd;
 
@@ -274,7 +274,7 @@ HRESULT D3DPresentEngine::SetDestinationRect(const RECT& rcDest)
 
   AutoLock lock(m_ObjectLock);
 
-  TRACE((L"SetDestinationRect: OLD b: %d t: %d l: %d r: %d NEW  b: %d t: %d l: %d r: %d\n", m_rcDestRect.bottom, m_rcDestRect.top, m_rcDestRect.left, rcDest.right, rcDest.bottom, rcDest.top, rcDest.left, rcDest.right));
+  TRACE((L"SetDestinationRect: OLD b: %d t: %d l: %d r: %d NEW  b: %d t: %d l: %d r: %d", m_rcDestRect.bottom, m_rcDestRect.top, m_rcDestRect.left, rcDest.right, rcDest.bottom, rcDest.top, rcDest.left, rcDest.right));
 
   PaintFrameWithGDI();
 
@@ -518,7 +518,7 @@ done:
 
 HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
 {
-  //TRACE((L"PresentSurface\n"));
+  //TRACE((L"PresentSurface"));
 
   HRESULT hr = S_OK;
   RECT target, targetRect;
@@ -711,7 +711,7 @@ HRESULT D3DPresentEngine::PresentSample(IMFSample* pSample, LONGLONG llTarget, L
     // Get the surface from the buffer.
     CHECK_HR(hr = MFGetService(pBuffer, MR_BUFFER_SERVICE, __uuidof(IDirect3DSurface9), (void**)&pSurface));
     CHECK_HR(hr = pSample->GetSampleDuration(&sampleDuration));
-    //TRACE((L"PresentSample llTarget=%I64d timeDelta=%I64d remainingInQueue=%I64d frameDurationDiv4=%I64d sampleDuration=%I64d lastDelta=%f m_AvgTimeDelta=%f\n", llTarget, timeDelta, remainingInQueue, frameDurationDiv4, sampleDuration, lastDelta, m_AvgTimeDelta));
+    //TRACE((L"PresentSample llTarget=%I64d timeDelta=%I64d remainingInQueue=%I64d frameDurationDiv4=%I64d sampleDuration=%I64d lastDelta=%f m_AvgTimeDelta=%f", llTarget, timeDelta, remainingInQueue, frameDurationDiv4, sampleDuration, lastDelta, m_AvgTimeDelta));
   }
   else if (m_pSurfaceRepaint && !currentSampleIsTooLate)
   {
@@ -746,7 +746,7 @@ HRESULT D3DPresentEngine::PresentSample(IMFSample* pSample, LONGLONG llTarget, L
   {
     // No surface. All we can do is paint a black rectangle.
     //PaintFrameWithGDI();
-//TRACE((L"PresentSample: Drop frame\n"));
+//TRACE((L"PresentSample: Drop frame"));
   }
 
 done:
@@ -791,7 +791,7 @@ HRESULT D3DPresentEngine::InitializeD3D()
 {
   HRESULT hr = S_OK;
 
-  TRACE((L"InitializeD3D\n"));
+  TRACE((L"InitializeD3D"));
 
   assert(m_pD3D9 == NULL);
   assert(m_pDeviceManager == NULL);
@@ -865,12 +865,12 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
   if (m_pD3D9->GetAdapterIdentifier(uAdapterID, 0, &adapterIdentifier) == S_OK) {
     if ((::StringFromGUID2(adapterIdentifier.DeviceIdentifier, strGUID, 50) > 0)) {
       strncpy(m_AdapterName, adapterIdentifier.Description, MAX_DEVICE_IDENTIFIER_STRING);
-       TRACE((L"Adapter Found: %S\n", m_AdapterName));
+       TRACE((L"Adapter Found: %S", m_AdapterName));
     }
   }
 
   
-  TRACE((L"InitializeD3D\n"));
+  TRACE((L"InitializeD3D"));
 
   // Get the device caps for this adapter.
   CHECK_HR(hr = m_pD3D9->GetDeviceCaps(uAdapterID, D3DDEVTYPE_HAL, &ddCaps));
@@ -1059,10 +1059,10 @@ void D3DPresentEngine::PaintFrameWithGDI()
 
     ReleaseDC(m_hwnd, hdc);
 
-    TRACE((L"PaintFrameWithGDI: b: %d t: %d l: %d r: %d\n", m_rcDestRect.bottom, m_rcDestRect.top, m_rcDestRect.left, m_rcDestRect.right));
+    TRACE((L"PaintFrameWithGDI: b: %d t: %d l: %d r: %d", m_rcDestRect.bottom, m_rcDestRect.top, m_rcDestRect.left, m_rcDestRect.right));
   }
   else
-    TRACE((L"PaintFrameWithGDI failed\n"));
+    TRACE((L"PaintFrameWithGDI failed"));
 }
 
 void D3DPresentEngine::BlackBackBuffer()

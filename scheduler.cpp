@@ -223,11 +223,11 @@ HRESULT Scheduler::StopScheduler()
 
 HRESULT Scheduler::Flush()
 {
-  TRACE((L"Scheduler::Flush\n"));
+  TRACE((L"Scheduler::Flush"));
 
   if (m_hSchedulerThread == NULL)
   {
-    TRACE((L"No scheduler thread!\n"));
+    TRACE((L"No scheduler thread!"));
   }
 
   if (m_hSchedulerThread)
@@ -241,7 +241,7 @@ HRESULT Scheduler::Flush()
 
     WaitForMultipleObjects(ARRAY_SIZE(objects), objects, FALSE, SCHEDULER_TIMEOUT);
 
-    TRACE((L"Scheduler::Flush completed.\n"));
+    TRACE((L"Scheduler::Flush completed."));
   }
 
   return S_OK;
@@ -498,7 +498,7 @@ DWORD Scheduler::SchedulerThreadProcPrivate()
       switch (msg.message)
       {
       case eTerminate:
-        TRACE((L"eTerminate\n"));
+        TRACE((L"eTerminate"));
         bExitThread = TRUE;
         break;
 
@@ -527,6 +527,6 @@ DWORD Scheduler::SchedulerThreadProcPrivate()
 
   }  // while (!bExitThread)
 
-  TRACE((L"Exit scheduler thread.\n"));
+  TRACE((L"Exit scheduler thread."));
   return (SUCCEEDED(hr) ? 0 : 1);
 }
