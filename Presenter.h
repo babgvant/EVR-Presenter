@@ -344,7 +344,7 @@ public:
       m_scheduler.SetFrameDropThreshold(value);
       break;
     case EVRCP_SETTING_POSITION_OFFSET:
-      m_iPositionOffset = value;
+      hr = m_pD3DPresentEngine->SetInt(setting, value);
       break;
     default:
       hr = E_NOTIMPL;
@@ -366,7 +366,7 @@ public:
       *value = m_scheduler.GetFrameDropThreshold();
       break;
     case EVRCP_SETTING_POSITION_OFFSET:
-      *value = m_iPositionOffset;
+      m_pD3DPresentEngine->GetInt(setting, value);
       break;
     default:
       hr = E_NOTIMPL;
@@ -418,10 +418,8 @@ public:
       m_bCorrectAR = value;
       break;
     case EVRCP_SETTING_REQUEST_OVERLAY:
-      hr = m_pD3DPresentEngine->SetBool(setting, value);
-      break;
     case EVRCP_SETTING_POSITION_FROM_BOTTOM:
-      m_bPositionFromBottom = value;
+      hr = m_pD3DPresentEngine->SetBool(setting, value);
       break;
     default:
       hr = E_NOTIMPL;
@@ -443,10 +441,9 @@ public:
       *value = m_bCorrectAR;
       break;
     case EVRCP_SETTING_REQUEST_OVERLAY:
+    case EVRCP_SETTING_POSITION_FROM_BOTTOM:
       m_pD3DPresentEngine->GetBool(setting, value);
       break;
-    case EVRCP_SETTING_POSITION_FROM_BOTTOM:
-      *value = m_bPositionFromBottom;
     default:
       hr = E_NOTIMPL;
       break;
@@ -635,8 +632,6 @@ protected:
   //IPin *				m_pEvrPin;
   REFERENCE_TIME		          m_rtTimePerFrame;
   bool				                m_bCorrectAR;
-  bool				                m_bPositionFromBottom;
-  int                         m_iPositionOffset;
 };
 
 

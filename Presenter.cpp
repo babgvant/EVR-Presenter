@@ -1161,8 +1161,6 @@ EVRCustomPresenter::EVRCustomPresenter(HRESULT& hr) :
   , m_rtTimePerFrame(0)
   , m_pEvr(NULL)
   , m_bCorrectAR(true)
-  , m_iPositionOffset(10)
-  , m_bPositionFromBottom(true)
 {
   hr = S_OK;
 
@@ -1302,7 +1300,7 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
     BYTE* s;
     int pitch = 0;
     RECT clipRect;
-    RECT outpRect;
+    //RECT outpRect;
     int bmpCount = 0;
     bool isBitmap = false;
 
@@ -1354,49 +1352,28 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
                   if (SUCCEEDED(hr = pSurface->UnlockRect()))
                   {
 #ifdef DUMPSUBS
-
                     wchar_t buff[FILENAME_MAX];
                     wsprintf(buff, L"sub%d.png", id);
                     hr = D3DXSaveSurfaceToFile(buff, D3DXIFF_PNG, pSurface, NULL, NULL);
-
 #endif // DUMPSUBS
-                    outpRect = m_pD3DPresentEngine->GetDestinationRect();
-                    float hRatio = (float)abs(outpRect.top - outpRect.bottom) / (float)abs(clipRect.top - clipRect.bottom);
-                    float wRatio = (float)abs(outpRect.left - outpRect.right) / (float)abs(clipRect.left - clipRect.right);
-                    TRACE((L"Calc position: Org t: %d b: %d l: %d r: %d Output  t: %d b: %d l: %d r: %d Ratio h: %f w: %f", clipRect.top, clipRect.bottom, clipRect.left, clipRect.right, outpRect.top, outpRect.bottom, outpRect.left, outpRect.right, hRatio, wRatio));
-
-                    MFVideoNormalizedRect nrcDest;
-                    nrcDest.top = (float)p.y / hRatio;
-                    nrcDest.bottom = (float)(p.y + srcRect.bottom) / hRatio;
-                    nrcDest.left = (float)p.x / wRatio;
-                    nrcDest.right = (float)(p.x + srcRect.right) / wRatio;
-
-                    //nrcDest.top = (float)p.y / (float)clipRect.bottom;
-                    //nrcDest.left = (float)p.x / (float)clipRect.right;
-                    //nrcDest.bottom = (float)(p.y + srcRect.bottom) / (float)clipRect.bottom;
-                    //nrcDest.right = (float)(p.x + srcRect.right) / (float)clipRect.right;
+                    TRACE((L"Video: x: %d y: %d", context.videoOutputRect.right, context.videoOutputRect.bottom)); 
+                    
                     RECT dstRect = { 0,0,0,0 };
-                    dstRect.top = p.y * hRatio;
-                    dstRect.bottom = (p.y + srcRect.bottom) * hRatio;
-                    dstRect.left = p.x * wRatio;
-                    dstRect.right = (p.x + srcRect.right) * wRatio;
+                    dstRect.top = p.y;
+                    dstRect.bottom = (p.y + sz.cy);
+                    dstRect.left = p.x;
+                    dstRect.right = (p.x + sz.cx);
+
+                    //RECT nDstRect = { 0,0,0,0 };
+                    //IntersectRect(&nDstRect, &dstRect, &clipRect);
+
                     TRACE((L"srcRect t: %d b: %d l: %d r: %d", srcRect.top, srcRect.bottom, srcRect.left, srcRect.right));
-                    TRACE((L"dstRect: Src t: %d b: %d l: %d r: %d", dstRect.top, dstRect.bottom, dstRect.left, dstRect.right));
+                    TRACE((L"dstRect: t: %d b: %d l: %d r: %d", dstRect.top, dstRect.bottom, dstRect.left, dstRect.right));
+                    //TRACE((L"nDstRect: t: %d b: %d l: %d r: %d", nDstRect.top, nDstRect.bottom, nDstRect.left, nDstRect.right));
 
-                    if (m_bPositionFromBottom)
-                    {
-                      int subHeight = abs(dstRect.bottom - dstRect.top);
-                      int subBottom = outpRect.bottom - m_iPositionOffset;
-                      int subTop = subBottom - subHeight;
+                    TRACE((L"SetSubtitle: Src t: %d b: %d l: %d r: %d Dst  t: %d b: %d l: %d r: %d", srcRect.top, srcRect.bottom, srcRect.left, srcRect.right, dstRect.top, dstRect.bottom, dstRect.left, dstRect.right));
 
-                      TRACE((L"Change position to %d from bottom Dst t: %d b: %d Adjusted t: %d b: %d", m_iPositionOffset, dstRect.top, dstRect.bottom, subTop, subBottom));
-                      dstRect.top = subTop;
-                      dstRect.bottom = subBottom;
-                    }
-
-                    TRACE((L"SetSubtitle: Src t: %d b: %d l: %d r: %d Dst  t: %d b: %d l: %d r: %d NormRect b: %f t: %f l: %f r: %f", srcRect.top, srcRect.bottom, srcRect.left, srcRect.right, dstRect.top, dstRect.bottom, dstRect.left, dstRect.right, nrcDest.bottom, nrcDest.top, nrcDest.left, nrcDest.right));
-
-                    m_pD3DPresentEngine->SetSubtitle(pSurface, srcRect, dstRect, nrcDest);
+                    m_pD3DPresentEngine->SetSubtitle(pSurface, srcRect, dstRect);
                     m_bSubtitleSet = true;
 
                     m_lastSubtitleId = id;
@@ -1417,8 +1394,7 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
   else if (m_bSubtitleSet)
   {
     RECT blnkRect = { 0, 0, 0, 0 }; 
-    MFVideoNormalizedRect nrcDest = { 0, 0, 0, 0 };
-    m_pD3DPresentEngine->SetSubtitle(NULL, blnkRect, blnkRect, nrcDest);
+    m_pD3DPresentEngine->SetSubtitle(NULL, blnkRect, blnkRect);
     m_bSubtitleSet = false;
   }
 
@@ -1511,8 +1487,7 @@ STDMETHODIMP EVRCustomPresenter::Clear(REFERENCE_TIME clearNewerThan)
   if (m_pD3DPresentEngine) 
   {
     RECT blnkRect = { 0, 0, 0, 0 };
-    MFVideoNormalizedRect nrcDest = { 0, 0, 0, 0 };
-    m_pD3DPresentEngine->SetSubtitle(NULL, blnkRect, blnkRect, nrcDest);
+    m_pD3DPresentEngine->SetSubtitle(NULL, blnkRect, blnkRect);
     m_bSubtitleSet = false;
   }
 
@@ -2442,17 +2417,20 @@ HRESULT EVRCustomPresenter::CreateOptimalVideoType(IMFMediaType* pProposedType, 
     m_VideoAR.cx = sampleArX;
 
     //Don't have XySubFilter scale the subtitles
-    context.originalVideoSize.cx = iWidth;
-    context.originalVideoSize.cy = iHeight;
-
     SIZE native;
     ZeroMemory(&native, sizeof(native));
     GetNativeVideoSize(&native, &context.arAdjustedVideoSize);
 
+    context.originalVideoSize.cx = iWidth;
+    context.originalVideoSize.cy = iHeight;
+
+    context.arAdjustedVideoSize.cx = native.cy;
+    context.arAdjustedVideoSize.cy = native.cx;
+
     context.videoOutputRect.top = 0;
     context.videoOutputRect.left = 0;
-    context.videoOutputRect.bottom = context.originalVideoSize.cy;
-    context.videoOutputRect.right = context.originalVideoSize.cx;
+    context.videoOutputRect.bottom = native.cy;
+    context.videoOutputRect.right = native.cx;
 
     //Let XySubFilter scale the subtitles
     //context.arAdjustedVideoSize.cx = rcVideoRect.right;//rcOutput.bottom;

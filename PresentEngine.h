@@ -101,6 +101,37 @@ public:
   RECT ScaleRectangle(const RECT& input, const RECT& src, const RECT& dst);
   bool ClipToSurface(IDirect3DSurface9* pSurface, RECT s, LPRECT d);
 
+  STDMETHODIMP SetInt(EVRCPSetting setting, int value) {
+    HRESULT hr = S_OK;
+
+    switch (setting)
+    {
+    case EVRCP_SETTING_POSITION_OFFSET:
+      if (value > 0 && value < 100)
+        m_iPositionOffset = value;
+      else
+        return E_INVALIDARG;
+      break;
+    default:
+      hr = E_NOTIMPL;
+      break;
+    }
+    return hr;
+  }
+  STDMETHODIMP GetInt(EVRCPSetting setting, int* value) {
+    HRESULT hr = S_OK;
+
+    switch (setting)
+    {
+    case EVRCP_SETTING_POSITION_OFFSET:
+      *value = m_iPositionOffset;
+      break;
+    default:
+      hr = E_NOTIMPL;
+      break;
+    }
+    return hr;
+  }
   STDMETHODIMP SetBool(EVRCPSetting setting, bool value) {
     HRESULT hr = S_OK;
     
@@ -108,6 +139,9 @@ public:
     {
     case EVRCP_SETTING_REQUEST_OVERLAY:
       m_bRequestOverlay = value;
+      break;
+    case EVRCP_SETTING_POSITION_FROM_BOTTOM:
+      m_bPositionFromBottom = value;
       break;
     default:
       hr = E_NOTIMPL;
@@ -124,6 +158,8 @@ public:
     case EVRCP_SETTING_REQUEST_OVERLAY:
       *value = m_bRequestOverlay;
       break;
+    case EVRCP_SETTING_POSITION_FROM_BOTTOM:
+      *value = m_bPositionFromBottom;
     default:
       hr = E_NOTIMPL;
       break;
@@ -131,7 +167,7 @@ public:
     return hr;
   }
 
-  void SetSubtitle(IDirect3DSurface9 *pSurfaceSubtitle, const RECT& src, const RECT& dst, const MFVideoNormalizedRect& nrcDest) {
+  void SetSubtitle(IDirect3DSurface9 *pSurfaceSubtitle, const RECT& src, const RECT& dst) {
     AutoLock lock(m_SubtitleLock);
 
     SAFE_RELEASE(m_pSurfaceSubtitle);
@@ -140,7 +176,6 @@ public:
       m_pSurfaceSubtitle = pSurfaceSubtitle;
       m_rcSubSrcRect = src;
       m_rcSubDstRect = dst;
-      m_nrcDest = nrcDest;
     }
   }
 
@@ -173,7 +208,6 @@ protected:
   D3DDISPLAYMODE              m_DisplayMode;          // Adapter's display mode.
   RECT                        m_rcSubSrcRect;
   RECT                        m_rcSubDstRect;
-  MFVideoNormalizedRect       m_nrcDest;
 
   CritSec                     m_ObjectLock;           // Thread lock for the D3D device.
   CritSec                     m_SubtitleLock;           // Thread lock for the subtitle surface.
@@ -206,4 +240,6 @@ private: // disallow copy and assign
   void operator=(const D3DPresentEngine&);
 
   //ID3DXFont* pFont;
+  bool				                m_bPositionFromBottom;
+  int                         m_iPositionOffset;
 };

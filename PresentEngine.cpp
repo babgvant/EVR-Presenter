@@ -55,6 +55,8 @@ D3DPresentEngine::D3DPresentEngine(HRESULT& hr) :
   , m_pDXVAVP(NULL)
   , m_bRequestOverlay(false)
   , m_pSurfaceSubtitle(NULL)
+  , m_iPositionOffset(5)
+  , m_bPositionFromBottom(true)
 {
   SetRectEmpty(&m_rcDestRect);
 
@@ -95,7 +97,7 @@ D3DPresentEngine::D3DPresentEngine(HRESULT& hr) :
 
   m_BltParams.BackgroundColor = color;
   m_BltParams.DestFormat = format;
-  //m_BltParams.Alpha = DXVA2_Fixed32OpaqueAlpha();
+  m_BltParams.Alpha = DXVA2_Fixed32OpaqueAlpha();
 
   //// init m_Sample structure
   m_Sample[0].Start = 0;
@@ -564,20 +566,34 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
       //process subtitle
       if (m_pSurfaceSubtitle)
       {
-        //D3DSURFACE_DESC sub_desc;
-        //ZeroMemory(&sub_desc, sizeof(sub_desc));
-        //hr = m_pSurfaceSubtitle->GetDesc(&sub_desc);
-        //LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface  m_pSurfaceSubtitle->GetDesc failed.", hr);
-        m_Sample[1].SrcSurface = m_pSurfaceSubtitle;        
-        //m_Sample[1].SrcRect.right = sub_desc.Width;
-        //m_Sample[1].SrcRect.bottom = sub_desc.Height;
-        m_Sample[1].SrcRect = m_rcSubSrcRect;
-        m_Sample[1].DstRect = m_rcSubDstRect;
+        RECT nDstRect = { 0,0,0,0 };
+        int frameHeight = abs(target.top - target.bottom);
 
-        //m_Sample[1].DstRect.top = abs(target.top - target.bottom) * m_nrcDest.top;
-        //m_Sample[1].DstRect.left = abs(target.left- target.right) * m_nrcDest.left;
-        //m_Sample[1].DstRect.right = abs(target.left - target.right) * m_nrcDest.right;
-        //m_Sample[1].DstRect.bottom = abs(target.top - target.bottom) * m_nrcDest.bottom;
+        nDstRect = ScaleRectangle(m_rcSubDstRect, m_Sample[0].SrcRect, target);
+        TRACE((L"nDstRect: t: %d b: %d l: %d r: %d", nDstRect.top, nDstRect.bottom, nDstRect.left, nDstRect.right));
+
+        if (m_bPositionFromBottom)
+        {
+          int subHeight = abs(nDstRect.bottom - nDstRect.top);
+          int subBottom = target.bottom - ((float)frameHeight * (float)m_iPositionOffset / (float)100);
+
+          if (subBottom >= target.bottom)
+          {
+            TRACE((L"Below bottom: calc: %d b: %d", subBottom, target.bottom));
+            subBottom = target.bottom - ((float)target.bottom * (float)m_iPositionOffset / (float)100);
+          }
+
+          int subTop = subBottom - subHeight;
+
+          TRACE((L"Change position to %d from bottom Dst t: %d b: %d Adjusted t: %d b: %d", m_iPositionOffset, nDstRect.top, nDstRect.bottom, subTop, subBottom));
+          nDstRect.top = subTop;
+          nDstRect.bottom = subBottom;
+        }
+
+        m_Sample[1].SrcSurface = m_pSurfaceSubtitle;
+        m_Sample[1].SrcRect = m_rcSubSrcRect;
+        m_Sample[1].DstRect = nDstRect;// m_rcSubDstRect;
+
         sampleCount = 2;
       }
 
