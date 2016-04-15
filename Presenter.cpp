@@ -1186,6 +1186,7 @@ EVRCustomPresenter::EVRCustomPresenter(HRESULT& hr) :
       int chars = (int)wcslen(version);
       context.version = (LPWSTR)LocalAlloc(0, sizeof(WCHAR) * (chars + 1));
       wcscpy_s(context.version, chars + 1, version);
+      TRACE((L"CP Version: %ws", context.version));
     }
   }
 

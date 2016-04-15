@@ -53,6 +53,15 @@ DEFINE_CLASSFACTORY_SERVER_LOCK;    // Defines the static member variable for th
 // Friendly name for COM registration.
 WCHAR* g_sFriendlyName =  L"EVR Presenter (babgvant)";
 
+//namespace
+//{
+//#if (defined(WIN32) || defined(_WIN32) || defined(__WIN32__))
+//  const std::string path_to_log_file = "./";
+//#else
+//  const std::string path_to_log_file = "/tmp/";
+//#endif
+//}
+
 // g_ClassFactories: Array of class factory data.
 // Defines a look-up table of CLSIDs and corresponding creation functions.
 
@@ -73,7 +82,31 @@ BOOL APIENTRY DllMain( HANDLE hModule,
     {
     case DLL_PROCESS_ATTACH:
         g_hModule = (HMODULE)hModule;
-        TRACE_INIT(NULL);
+
+        {
+          HKEY newKey;
+          WCHAR logPath[_MAX_PATH + 1] = { 0 };
+          DWORD readType;
+          DWORD hsize = sizeof(logPath);
+          DWORD regVal = 0;
+          bool bGotLogPath = false;
+
+          if (RegOpenKeyExW(HKEY_CURRENT_USER, L"SOFTWARE\\babgvant\\EVR Presenter\0",
+            0, KEY_READ | KEY_QUERY_VALUE, &newKey) == ERROR_SUCCESS)
+          {
+            if (RegQueryValueExW(newKey, L"LogFile\0", 0, &readType, (LPBYTE)logPath, &hsize) == ERROR_SUCCESS)
+            {
+              bGotLogPath = true;
+            }
+
+            RegCloseKey(newKey);
+          }
+
+          if(bGotLogPath)
+            TRACE_INIT(logPath);
+          else
+            TRACE_INIT(NULL);
+        }
         break;
 
     case DLL_THREAD_ATTACH:

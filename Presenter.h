@@ -116,15 +116,6 @@ typedef struct EVRSubtitleConsumerContext {
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 #define HINST_THISCOMPONENT ((HINSTANCE)&__ImageBase)
 
-//namespace
-//{
-//#if (defined(WIN32) || defined(_WIN32) || defined(__WIN32__))
-//  const std::string path_to_log_file = "./";
-//#else
-//  const std::string path_to_log_file = "/tmp/";
-//#endif
-//}
-
 //-----------------------------------------------------------------------------
 //  EVRCustomPresenter class
 //  Description: Implements the custom presenter.
