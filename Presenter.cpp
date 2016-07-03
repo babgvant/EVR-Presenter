@@ -1373,7 +1373,7 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
             {
               IDirect3DSurface9   * pSurface;
 
-              if (SUCCEEDED(hr = m_pD3DPresentEngine->CreateSurface(sz.cx, sz.cy, VIDEO_SUB_FORMAT, &pSurface)))
+              if (SUCCEEDED(hr = m_pD3DPresentEngine->CreateSubSurface(sz.cx, sz.cy, &pSurface)))
               {
                 RECT srcRect = { 0, 0, sz.cx, sz.cy };
                 D3DLOCKED_RECT lkRect;
@@ -1381,6 +1381,7 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
                 //if (SUCCEEDED(hr = D3DXLoadSurfaceFromMemory(pSurface, NULL, NULL, s, D3DFMT_A8R8G8B8, pitch, NULL, &srcRect, D3DX_DEFAULT, 0)))
                 if (SUCCEEDED(hr = pSurface->LockRect(&lkRect, NULL, D3DLOCK_DISCARD)))
                 {
+#ifdef MAKEORANGE
                   D3DCOLOR color = D3DCOLOR_XRGB(0xEB, 0x7E, 0x10);
 
                   const BYTE R = LOBYTE(HIWORD(color));
@@ -1392,17 +1393,17 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
                     0,
                     sz.cx, sz.cy,
                     RGBtoYUV(D3DCOLOR_ARGB(0x80, R, G, B)));
-
+#else
                   // get destination pointer and copy pixels
-                  //BYTE* pDestPixels = (BYTE*)lkRect.pBits;
-                  //for (int y = 0; y < sz.cy; ++y)
-                  //{
-                  //  // copy a row
-                  //  memcpy(pDestPixels, s, sz.cx * 4);   // 4 bytes per pixel                                                                    
-                  //  s += pitch; // advance row pointers
-                  //  pDestPixels += lkRect.Pitch;
-                  //}
-
+                  BYTE* pDestPixels = (BYTE*)lkRect.pBits;
+                  for (int y = 0; y < sz.cy; ++y)
+                  {
+                    // copy a row
+                    memcpy(pDestPixels, s, sz.cx * 4);   // 4 bytes per pixel                                                                    
+                    s += pitch; // advance row pointers
+                    pDestPixels += lkRect.Pitch;
+                  }
+#endif // DUMPSUBS
                   if (SUCCEEDED(hr = pSurface->UnlockRect()))
                   {
 #ifdef DUMPSUBS

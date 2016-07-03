@@ -65,7 +65,11 @@ const UINT VIDEO_REQUIED_OP = DXVA2_VideoProcess_YUV2RGB |
 const D3DFORMAT VIDEO_RENDER_TARGET_FORMAT = D3DFMT_X8R8G8B8;
 const D3DFORMAT VIDEO_MAIN_FORMAT = D3DFMT_YUY2;
 const D3DFORMAT VIDEO_SUB_FORMAT = D3DFORMAT('VUYA'); // AYUV
-const DWORD DXVA_RENDER_TARGET = DXVA2_VideoProcessorRenderTarget;
+const DWORD DXVA_RENDER_TARGET = DXVA2_VideoProcessorRenderTarget; 
+const UINT BACK_BUFFER_COUNT = 1;
+const UINT SUB_STREAM_COUNT = 1;
+const UINT DWM_BUFFER_COUNT = 4;
+const BYTE DEFAULT_PLANAR_ALPHA_VALUE = 0xFF;
 
 extern "C" const GUID __declspec(selectany) DXVA2_VideoProcProgressiveDevice =
 { 0x5a54a0c9, 0xc7ec, 0x4bd9,{ 0x8e, 0xde, 0xf3, 0xc7, 0x5d, 0xc4, 0x39, 0x3b } };
@@ -193,6 +197,12 @@ public:
     }
   }
 
+  HRESULT CreateSubSurface(UINT Width, UINT Height, IDirect3DSurface9** ppSurface)
+  {
+    return CreateSurface(Width, Height, m_VideoSubFormat, ppSurface);
+  }
+
+
 protected:
   HRESULT InitializeD3D();
   //HRESULT GetSwapChainPresentParameters(IMFMediaType *pType, D3DPRESENT_PARAMETERS* pPP);
@@ -256,4 +266,5 @@ private: // disallow copy and assign
   //ID3DXFont* pFont;
   bool				                m_bPositionFromBottom;
   int                         m_iPositionOffset;
+  D3DFORMAT                   m_VideoSubFormat;
 };

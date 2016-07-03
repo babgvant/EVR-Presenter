@@ -553,6 +553,10 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
   if (ClipToSurface(pSurface, m_Sample[0].SrcRect, &target))
   {
     m_BltParams.TargetRect = target;
+    // DXVA2_VideoProcess_Constriction
+    m_BltParams.ConstrictionSize.cx = target.right - target.left;
+    m_BltParams.ConstrictionSize.cy = target.bottom - target.top;
+
     m_Sample[0].DstRect = target;
     //m_Sample.SrcRect = 
     m_Sample[0].SrcSurface = pSurface;
@@ -573,11 +577,11 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
         nDstRect = ScaleRectangle(m_rcSubDstRect, m_Sample[0].SrcRect, target);
         TRACE((L"nDstRect: t: %d b: %d l: %d r: %d", nDstRect.top, nDstRect.bottom, nDstRect.left, nDstRect.right));
 
-		int yo = MSDK_ALIGN16(abs(nDstRect.top - nDstRect.bottom));
-		int yo1 = MSDK_ALIGN16(abs(nDstRect.left - nDstRect.right));
-		int yo2 = (abs(nDstRect.top - nDstRect.bottom));
-		int yo3 = (abs(nDstRect.left - nDstRect.right));
-		TRACE((L"nDstRect Aligned: ah: %d aw: %d h: %d w: %d", yo, yo1, yo2, yo3));
+		//int yo = MSDK_ALIGN16(abs(nDstRect.top - nDstRect.bottom));
+		//int yo1 = MSDK_ALIGN16(abs(nDstRect.left - nDstRect.right));
+		//int yo2 = (abs(nDstRect.top - nDstRect.bottom));
+		//int yo3 = (abs(nDstRect.left - nDstRect.right));
+		//TRACE((L"nDstRect Aligned: ah: %d aw: %d h: %d w: %d", yo, yo1, yo2, yo3));
 
         if (m_bPositionFromBottom)
         {
@@ -908,6 +912,8 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
     vp = D3DCREATE_SOFTWARE_VERTEXPROCESSING;
   }
 
+  vp = D3DCREATE_SOFTWARE_VERTEXPROCESSING; //1
+
   // Note: The presenter creates additional swap chains to present the
   // video frames. Therefore, it does not use the device's implicit 
   // swap chain, so the size of the back buffer here is 1 x 1.
@@ -915,17 +921,18 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
   D3DPRESENT_PARAMETERS pp;
   ZeroMemory(&pp, sizeof(pp));
 
-  pp.BackBufferWidth = m_DisplayMode.Width;// abs(m_rcDestRect.right - m_rcDestRect.left);//1;
-  pp.BackBufferHeight = m_DisplayMode.Height;// abs(m_rcDestRect.bottom - m_rcDestRect.top);//1;
+  pp.BackBufferWidth = 0;// m_DisplayMode.Width;//1;
+  pp.BackBufferHeight = 0;//m_DisplayMode.Height;//1;
   //pp.BackBufferWidth = abs(m_rcDestRect.right - m_rcDestRect.left);//1;
   //pp.BackBufferHeight = abs(m_rcDestRect.bottom - m_rcDestRect.top);//1;
   pp.Windowed = TRUE;
   pp.SwapEffect = D3DSWAPEFFECT_COPY;
   pp.BackBufferFormat = VIDEO_RENDER_TARGET_FORMAT;// D3DFMT_UNKNOWN;
-  pp.BackBufferCount = 1; //added
+  pp.BackBufferCount = BACK_BUFFER_COUNT; //added
   pp.hDeviceWindow = hwnd;
-  pp.Flags = D3DPRESENTFLAG_VIDEO | D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
+  pp.Flags = D3DPRESENTFLAG_VIDEO;// | D3DPRESENTFLAG_LOCKABLE_BACKBUFFER; //1
   pp.PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
+  pp.FullScreen_RefreshRateInHz = D3DPRESENT_RATE_DEFAULT; //1
 
   if (m_bRequestOverlay && (ddCaps.Caps & D3DCAPS_OVERLAY))
   {
@@ -937,7 +944,7 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
     uAdapterID,
     D3DDEVTYPE_HAL,
     pp.hDeviceWindow,
-    vp | D3DCREATE_NOWINDOWCHANGES | D3DCREATE_MULTITHREADED | D3DCREATE_FPU_PRESERVE,
+    vp | /*D3DCREATE_NOWINDOWCHANGES |*/ D3DCREATE_MULTITHREADED | D3DCREATE_FPU_PRESERVE,//1
     &pp,
     NULL,
     &pDevice
@@ -965,7 +972,7 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
   if (count > 0)
   {
 		int i = 0;
-    CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(guids[0], &m_VideoDesc, VIDEO_RENDER_TARGET_FORMAT, 1, &m_pDXVAVP));
+    CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(guids[0], &m_VideoDesc, VIDEO_RENDER_TARGET_FORMAT, SUB_STREAM_COUNT, &m_pDXVAVP));
     CHECK_HR(hr = m_pDXVAVPS->GetVideoProcessorCaps(guids[0], &m_VideoDesc, VIDEO_RENDER_TARGET_FORMAT, &m_VPCaps));
 
 		hr = m_pDXVAVPS->GetVideoProcessorRenderTargets(guids[0],
@@ -1004,6 +1011,8 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
 			&rcount,
 			&formats);
 
+    m_VideoSubFormat = D3DFMT_A8R8G8B8;// formats[0];
+
 		for (i = 0; i < rcount; i++)
 		{
 			if (formats[i] == VIDEO_SUB_FORMAT)
@@ -1021,7 +1030,7 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
   }
   else
   {
-    CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(DXVA2_VideoProcProgressiveDevice, &m_VideoDesc, VIDEO_RENDER_TARGET_FORMAT, 1, &m_pDXVAVP));
+    CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(DXVA2_VideoProcProgressiveDevice, &m_VideoDesc, VIDEO_RENDER_TARGET_FORMAT, SUB_STREAM_COUNT, &m_pDXVAVP));
     CHECK_HR(hr = m_pDXVAVPS->GetVideoProcessorCaps(DXVA2_VideoProcProgressiveDevice, &m_VideoDesc, VIDEO_RENDER_TARGET_FORMAT, &m_VPCaps));
   }
 
