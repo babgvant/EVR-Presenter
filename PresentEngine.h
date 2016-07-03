@@ -53,6 +53,20 @@
 #define MSDK_MEMCPY_VAR(dstVarName, src, count) memcpy_s(&(dstVarName), sizeof(dstVarName), (src), (count))
 const DWORD PRESENTER_BUFFER_COUNT = 3;
 
+#define MSDK_ALIGN16(value)                      (((value + 15) >> 4) << 4) // round up to a multiple of 16
+#define MSDK_ALIGN32(value)                      (((value + 31) >> 5) << 5) // round up to a multiple of 32
+
+const UINT VIDEO_REQUIED_OP = DXVA2_VideoProcess_YUV2RGB |
+								DXVA2_VideoProcess_StretchX |
+								DXVA2_VideoProcess_StretchY |
+								DXVA2_VideoProcess_SubRects |
+								DXVA2_VideoProcess_SubStreams;
+
+const D3DFORMAT VIDEO_RENDER_TARGET_FORMAT = D3DFMT_X8R8G8B8;
+const D3DFORMAT VIDEO_MAIN_FORMAT = D3DFMT_YUY2;
+const D3DFORMAT VIDEO_SUB_FORMAT = D3DFORMAT('VUYA'); // AYUV
+const DWORD DXVA_RENDER_TARGET = DXVA2_VideoProcessorRenderTarget;
+
 extern "C" const GUID __declspec(selectany) DXVA2_VideoProcProgressiveDevice =
 { 0x5a54a0c9, 0xc7ec, 0x4bd9,{ 0x8e, 0xde, 0xf3, 0xc7, 0x5d, 0xc4, 0x39, 0x3b } };
 

@@ -1332,7 +1332,7 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
             {
               IDirect3DSurface9   * pSurface;
 
-              if (SUCCEEDED(hr = m_pD3DPresentEngine->CreateSurface(sz.cx, sz.cy, D3DFMT_A8R8G8B8, &pSurface)))
+              if (SUCCEEDED(hr = m_pD3DPresentEngine->CreateSurface(sz.cx, sz.cy, VIDEO_SUB_FORMAT, &pSurface)))
               {
                 RECT srcRect = { 0, 0, sz.cx, sz.cy };
                 D3DLOCKED_RECT lkRect;

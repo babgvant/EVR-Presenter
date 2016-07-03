@@ -90,6 +90,7 @@ D3DPresentEngine::D3DPresentEngine(HRESULT& hr) :
   m_VideoDesc.InputSampleFreq.Denominator = 1;
   m_VideoDesc.OutputFrameFreq.Numerator = 60;
   m_VideoDesc.OutputFrameFreq.Denominator = 1;
+	m_VideoDesc.Format = VIDEO_MAIN_FORMAT;
 
   // init m_BltParams structure
   MSDK_MEMCPY_VAR(m_BltParams.DestFormat, &format, sizeof(DXVA2_ExtendedFormat));
@@ -407,7 +408,7 @@ HRESULT D3DPresentEngine::CreateVideoSamples(IMFMediaType *pFormat, VideoSampleL
   //CHECK_HR(hr = m_pDeviceManager->GetVideoService(hDevice, __uuidof(IDirectXVideoProcessorService), (void**)&pVideoProcessorService));
 
   // Create IDirect3DSurface9 surface
-  CHECK_HR(hr = m_pDXVAVPS->CreateSurface(nWidth, nHeight, PRESENTER_BUFFER_COUNT - 1, D3DFMT_X8R8G8B8, m_VPCaps.InputPool, 0, DXVA2_VideoProcessorRenderTarget, (IDirect3DSurface9 **)&m_pMixerSurfaces, NULL));
+  CHECK_HR(hr = m_pDXVAVPS->CreateSurface(nWidth, nHeight, PRESENTER_BUFFER_COUNT - 1, VIDEO_RENDER_TARGET_FORMAT, m_VPCaps.InputPool, 0, DXVA_RENDER_TARGET, (IDirect3DSurface9 **)&m_pMixerSurfaces, NULL));
 
   // Create the video samples.
   for (int i = 0; i < PRESENTER_BUFFER_COUNT; i++)
@@ -571,6 +572,12 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
 
         nDstRect = ScaleRectangle(m_rcSubDstRect, m_Sample[0].SrcRect, target);
         TRACE((L"nDstRect: t: %d b: %d l: %d r: %d", nDstRect.top, nDstRect.bottom, nDstRect.left, nDstRect.right));
+
+		int yo = MSDK_ALIGN16(abs(nDstRect.top - nDstRect.bottom));
+		int yo1 = MSDK_ALIGN16(abs(nDstRect.left - nDstRect.right));
+		int yo2 = (abs(nDstRect.top - nDstRect.bottom));
+		int yo3 = (abs(nDstRect.left - nDstRect.right));
+		TRACE((L"nDstRect Aligned: ah: %d aw: %d h: %d w: %d", yo, yo1, yo2, yo3));
 
         if (m_bPositionFromBottom)
         {
@@ -835,6 +842,7 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
   HMONITOR    hMonitor = NULL;
   UINT        uAdapterID = D3DADAPTER_DEFAULT;
   DWORD       vp = 0;
+  D3DFORMAT* formats = NULL;
 
   D3DCAPS9    ddCaps;
   ZeroMemory(&ddCaps, sizeof(ddCaps));
@@ -913,7 +921,7 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
   //pp.BackBufferHeight = abs(m_rcDestRect.bottom - m_rcDestRect.top);//1;
   pp.Windowed = TRUE;
   pp.SwapEffect = D3DSWAPEFFECT_COPY;
-  pp.BackBufferFormat = D3DFMT_X8R8G8B8;// D3DFMT_UNKNOWN;
+  pp.BackBufferFormat = VIDEO_RENDER_TARGET_FORMAT;// D3DFMT_UNKNOWN;
   pp.BackBufferCount = 1; //added
   pp.hDeviceWindow = hwnd;
   pp.Flags = D3DPRESENTFLAG_VIDEO | D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
@@ -948,7 +956,7 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
   // Create DXVA2 Video Processor Service.
   CHECK_HR(hr = DXVA2CreateVideoService(pDevice, _uuidof(IDirectXVideoProcessorService), (void**)&m_pDXVAVPS));
 
-  UINT count;
+  UINT count, rcount;
   GUID* guids = NULL;
 
   CHECK_HR(hr = m_pDXVAVPS->GetVideoProcessorDeviceGuids(&m_VideoDesc, &count, &guids));
@@ -956,13 +964,70 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
   // Create VPP device 
   if (count > 0)
   {
-    CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(guids[0], &m_VideoDesc, D3DFMT_X8R8G8B8, 1, &m_pDXVAVP));
-    CHECK_HR(hr = m_pDXVAVPS->GetVideoProcessorCaps(guids[0], &m_VideoDesc, D3DFMT_X8R8G8B8, &m_VPCaps));
+		int i = 0;
+    CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(guids[0], &m_VideoDesc, VIDEO_RENDER_TARGET_FORMAT, 1, &m_pDXVAVP));
+    CHECK_HR(hr = m_pDXVAVPS->GetVideoProcessorCaps(guids[0], &m_VideoDesc, VIDEO_RENDER_TARGET_FORMAT, &m_VPCaps));
+
+		hr = m_pDXVAVPS->GetVideoProcessorRenderTargets(guids[0],
+			&m_VideoDesc,
+			&rcount,
+			&formats);
+
+		if (FAILED(hr))
+		{
+			TRACE((TEXT("GetVideoProcessorRenderTargets failed with error 0x%x.\n"), hr));
+		}
+
+		for (i = 0; i < rcount; i++)
+		{
+			if (formats[i] == VIDEO_RENDER_TARGET_FORMAT)
+			{
+				break;
+			}
+		}
+
+		CoTaskMemFree(formats);
+
+		if (i >= rcount)
+		{
+			TRACE((TEXT("GetVideoProcessorRenderTargets doesn't support that format.\n")));
+		}
+
+		//
+		// Query the supported substream format.
+		//
+		formats = NULL;
+
+		hr = m_pDXVAVPS->GetVideoProcessorSubStreamFormats(guids[0],
+			&m_VideoDesc,
+			VIDEO_RENDER_TARGET_FORMAT,
+			&rcount,
+			&formats);
+
+		for (i = 0; i < rcount; i++)
+		{
+			if (formats[i] == VIDEO_SUB_FORMAT)
+			{
+				break;
+			}
+		}
+
+		CoTaskMemFree(formats);
+
+		if (i >= count)
+		{
+			TRACE((TEXT("GetVideoProcessorSubStreamFormats doesn't support that format.\n")));
+		}
   }
   else
   {
-    CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(DXVA2_VideoProcProgressiveDevice, &m_VideoDesc, D3DFMT_X8R8G8B8, 1, &m_pDXVAVP));
-    CHECK_HR(hr = m_pDXVAVPS->GetVideoProcessorCaps(DXVA2_VideoProcProgressiveDevice, &m_VideoDesc, D3DFMT_X8R8G8B8, &m_VPCaps));
+    CHECK_HR(hr = m_pDXVAVPS->CreateVideoProcessor(DXVA2_VideoProcProgressiveDevice, &m_VideoDesc, VIDEO_RENDER_TARGET_FORMAT, 1, &m_pDXVAVP));
+    CHECK_HR(hr = m_pDXVAVPS->GetVideoProcessorCaps(DXVA2_VideoProcProgressiveDevice, &m_VideoDesc, VIDEO_RENDER_TARGET_FORMAT, &m_VPCaps));
+  }
+
+  if ((m_VPCaps.VideoProcessorOperations & VIDEO_REQUIED_OP) != VIDEO_REQUIED_OP)
+  {
+	  TRACE((TEXT("The DXVA2 device doesn't support the VP operations.\n")));
   }
 
   SAFE_RELEASE(m_pDevice);
@@ -1127,7 +1192,7 @@ HRESULT D3DPresentEngine::CreateSurface(UINT Width, UINT Height, D3DFORMAT Forma
   {
     IDirect3DSurface9* pSurface = NULL;
 
-    if (SUCCEEDED(hr = m_pDXVAVPS->CreateSurface(Width, Height, 0, Format, m_VPCaps.InputPool, 0, DXVA2_VideoProcessorRenderTarget, &pSurface, NULL)))
+    if (SUCCEEDED(hr = m_pDXVAVPS->CreateSurface(Width, Height, 0, Format, m_VPCaps.InputPool, 0, DXVA_RENDER_TARGET, &pSurface, NULL)))
     {
       *ppSurface = pSurface;
     }

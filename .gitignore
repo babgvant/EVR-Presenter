@@ -67,3 +67,4 @@ Release/*
 *.suo
 *.suo
 *.sdf
+*.db
