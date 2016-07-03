@@ -1014,7 +1014,7 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
 
 		CoTaskMemFree(formats);
 
-		if (i >= count)
+		if (i >= rcount)
 		{
 			TRACE((TEXT("GetVideoProcessorSubStreamFormats doesn't support that format.\n")));
 		}

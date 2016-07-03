@@ -1274,6 +1274,47 @@ STDMETHODIMP EVRCustomPresenter::Disconnect(void)
   return S_OK;
 }
 
+VOID
+FillRectangle(
+  D3DLOCKED_RECT& lr,
+  const UINT sx,
+  const UINT sy,
+  const UINT ex,
+  const UINT ey,
+  const DWORD color)
+{
+  BYTE* p = (BYTE*)lr.pBits;
+
+  p += lr.Pitch * sy;
+
+  for (UINT y = sy; y < ey; y++, p += lr.Pitch)
+  {
+    for (UINT x = sx; x < ex; x++)
+    {
+      ((DWORD*)p)[x] = color;
+    }
+  }
+}
+
+
+DWORD
+RGBtoYUV(const D3DCOLOR rgb)
+{
+  const INT A = HIBYTE(HIWORD(rgb));
+  const INT R = LOBYTE(HIWORD(rgb)) - 16;
+  const INT G = HIBYTE(LOWORD(rgb)) - 16;
+  const INT B = LOBYTE(LOWORD(rgb)) - 16;
+
+  //
+  // studio RGB [16...235] to SDTV ITU-R BT.601 YCbCr
+  //
+  INT Y = (77 * R + 150 * G + 29 * B + 128) / 256 + 16;
+  INT U = (-44 * R - 87 * G + 131 * B + 128) / 256 + 128;
+  INT V = (131 * R - 110 * G - 21 * B + 128) / 256 + 128;
+
+  return D3DCOLOR_AYUV(A, Y, U, V);
+}
+
 STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TIME stop, LPVOID subcontext, ISubRenderFrame *subtitleFrame)
 {
   HRESULT hr = S_OK;
@@ -1340,15 +1381,27 @@ STDMETHODIMP EVRCustomPresenter::DeliverFrame(REFERENCE_TIME start, REFERENCE_TI
                 //if (SUCCEEDED(hr = D3DXLoadSurfaceFromMemory(pSurface, NULL, NULL, s, D3DFMT_A8R8G8B8, pitch, NULL, &srcRect, D3DX_DEFAULT, 0)))
                 if (SUCCEEDED(hr = pSurface->LockRect(&lkRect, NULL, D3DLOCK_DISCARD)))
                 {
+                  D3DCOLOR color = D3DCOLOR_XRGB(0xEB, 0x7E, 0x10);
+
+                  const BYTE R = LOBYTE(HIWORD(color));
+                  const BYTE G = HIBYTE(LOWORD(color));
+                  const BYTE B = LOBYTE(LOWORD(color));
+
+                  FillRectangle(lkRect,
+                    0,
+                    0,
+                    sz.cx, sz.cy,
+                    RGBtoYUV(D3DCOLOR_ARGB(0x80, R, G, B)));
+
                   // get destination pointer and copy pixels
-                  BYTE* pDestPixels = (BYTE*)lkRect.pBits;
-                  for (int y = 0; y < sz.cy; ++y)
-                  {
-                    // copy a row
-                    memcpy(pDestPixels, s, sz.cx * 4);   // 4 bytes per pixel                                                                    
-                    s += pitch; // advance row pointers
-                    pDestPixels += lkRect.Pitch;
-                  }
+                  //BYTE* pDestPixels = (BYTE*)lkRect.pBits;
+                  //for (int y = 0; y < sz.cy; ++y)
+                  //{
+                  //  // copy a row
+                  //  memcpy(pDestPixels, s, sz.cx * 4);   // 4 bytes per pixel                                                                    
+                  //  s += pitch; // advance row pointers
+                  //  pDestPixels += lkRect.Pitch;
+                  //}
 
                   if (SUCCEEDED(hr = pSurface->UnlockRect()))
                   {
