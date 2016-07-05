@@ -911,9 +911,7 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
   {
     vp = D3DCREATE_SOFTWARE_VERTEXPROCESSING;
   }
-
-  vp = D3DCREATE_SOFTWARE_VERTEXPROCESSING; //1
-
+	
   // Note: The presenter creates additional swap chains to present the
   // video frames. Therefore, it does not use the device's implicit 
   // swap chain, so the size of the back buffer here is 1 x 1.
