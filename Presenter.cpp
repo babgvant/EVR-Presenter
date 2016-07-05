@@ -2479,8 +2479,12 @@ HRESULT EVRCustomPresenter::CreateOptimalVideoType(IMFMediaType* pProposedType, 
     context.originalVideoSize.cx = iWidth;
     context.originalVideoSize.cy = iHeight;
 
+    //why is this flipped around
     context.arAdjustedVideoSize.cx = native.cy;
     context.arAdjustedVideoSize.cy = native.cx;
+
+    //context.arAdjustedVideoSize.cx = native.cx; //native.cy;
+    //context.arAdjustedVideoSize.cy = native.cy; //native.cx;
 
     context.videoOutputRect.top = 0;
     context.videoOutputRect.left = 0;
