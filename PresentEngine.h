@@ -264,7 +264,8 @@ private: // disallow copy and assign
   void operator=(const D3DPresentEngine&);
 
   //ID3DXFont* pFont;
-  bool				                m_bPositionFromBottom;
-  int                         m_iPositionOffset;
-  D3DFORMAT                   m_VideoSubFormat;
+  bool				        m_bPositionFromBottom;
+  int                       m_iPositionOffset;
+  D3DFORMAT                 m_VideoSubFormat;
+  bool				        m_bProcessSubs;
 };

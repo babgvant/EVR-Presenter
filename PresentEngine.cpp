@@ -57,6 +57,7 @@ D3DPresentEngine::D3DPresentEngine(HRESULT& hr) :
   , m_pSurfaceSubtitle(NULL)
   , m_iPositionOffset(5)
   , m_bPositionFromBottom(true)
+  , m_bProcessSubs(true)
 {
   SetRectEmpty(&m_rcDestRect);
 
@@ -569,7 +570,7 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
     {      
       AutoLock lock(m_SubtitleLock);
       //process subtitle
-      if (m_pSurfaceSubtitle)
+      if (m_pSurfaceSubtitle && m_bProcessSubs)
       {
         RECT nDstRect = { 0,0,0,0 };
         int frameHeight = abs(target.top - target.bottom);
@@ -610,6 +611,12 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
 
       hr = m_pDXVAVP->VideoProcessBlt(m_pRenderSurface, &m_BltParams, m_Sample, sampleCount, NULL);
       LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDXVAVP->VideoProcessBlt failed.", hr);
+			if (!SUCCEEDED(hr))
+			{
+				m_bProcessSubs = false;
+				hr = m_pDXVAVP->VideoProcessBlt(m_pRenderSurface, &m_BltParams, m_Sample, 1, NULL);
+				LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDXVAVP->VideoProcessBlt failed.", hr);
+			}
     }
 
     SAFE_RELEASE(m_pRenderSurface);
