@@ -613,6 +613,7 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
       LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDXVAVP->VideoProcessBlt failed.", hr);
 			if (!SUCCEEDED(hr))
 			{
+				TRACE((L"Disable subtitle processing"));
 				m_bProcessSubs = false;
 				hr = m_pDXVAVP->VideoProcessBlt(m_pRenderSurface, &m_BltParams, m_Sample, 1, NULL);
 				LOG_MSG_IF_FAILED(L"D3DPresentEngine::PresentSurface m_pDXVAVP->VideoProcessBlt failed.", hr);
