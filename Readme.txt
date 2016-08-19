@@ -87,3 +87,16 @@ Scheduler:
 
 1.0.0.6
 - Explicitly write subtitle surfaces
+
+1.0.0.7
+1.0.0.8
+1.0.0.9
+1.0.1.0
+
+1.0.1.1
+- Internal build
+
+1.0.1.2
+- stop processing subtitles if the blt fails
+
+1.0.1.3
