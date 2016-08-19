@@ -568,14 +568,16 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
 
     if (SUCCEEDED(hr) && m_pRenderSurface)
     {      
-      AutoLock lock(m_SubtitleLock);
+      AutoLock lock(m_SubtitleLock); 
+      RECT nDstRect = { 0,0,0,0 };
+      RECT nDstOrgRect = { 0,0,0,0 };
+
       //process subtitle
       if (m_pSurfaceSubtitle && m_bProcessSubs)
       {
-        RECT nDstRect = { 0,0,0,0 };
         int frameHeight = abs(target.top - target.bottom);
 
-        nDstRect = ScaleRectangle(m_rcSubDstRect, m_Sample[0].SrcRect, target);
+        nDstOrgRect = nDstRect = ScaleRectangle(m_rcSubDstRect, m_Sample[0].SrcRect, target);
         TRACE((L"nDstRect: t: %d b: %d l: %d r: %d", nDstRect.top, nDstRect.bottom, nDstRect.left, nDstRect.right));
 
 		//int yo = MSDK_ALIGN16(abs(nDstRect.top - nDstRect.bottom));
@@ -595,7 +597,7 @@ HRESULT D3DPresentEngine::PresentSurface(IDirect3DSurface9* pSurface)
             subBottom = target.bottom - ((float)target.bottom * (float)m_iPositionOffset / (float)100);
           }
 
-          int subTop = subBottom - subHeight;
+          int subTop = abs(subBottom - subHeight);
 
           TRACE((L"Change position to %d from bottom Dst t: %d b: %d Adjusted t: %d b: %d", m_iPositionOffset, nDstRect.top, nDstRect.bottom, subTop, subBottom));
           nDstRect.top = subTop;
